@@ -6,37 +6,41 @@ A programming language based on C syntax and League of Legends terms.
 ```
 <program> ::= <declaration>*
 
-<declaration> ::= <champion-decl> | <item-decl> | <nexus-decl>
+<comment> ::= "/all" [^\n]*
 
-<nexus-decl> ::= "nexus" "main" "(" ")" "{" <statement>* "}"
+<identifier> ::= [a-zA-Z_][a-zA-Z0-9_]*
 
-<champion-decl> ::= "champion" <identifier> "(" <param-list>? ")" "->" <type> "{" <statement>* "}"
-
-<param-list> ::= <param> | <param> "," <param-list>
-<param> ::= <identifier> ":" <type>
-
-<item-decl> ::= "shop" <identifier> ":" <type> "=" <expression> ";"
+<declaration> ::= <ability-decl> | <item-decl> | <nexus-decl>
 
 <statement> ::= <block>
               | <item-decl>
               | <assignment>
               | <coinflip>
-              | <respawn>
+              | <go next>
               | <ping>
-              | <return-stmt>
+              | <recall-stmt>
               | <expression-stmt>
+
+<nexus-decl> ::= "nexus" "(" ")" "{" <statement>* "}" // Main function
+
+<ability-decl> ::= "ability" <identifier> "(" <param-list>? ")" "->" <type> "{" <statement>* "}" // Function declaration
+
+<param-list> ::= <param> | <param> "," <param-list>
+<param> ::= <identifier> ":" <type>
+
+<item-decl> ::= "buy" <identifier> ":" <type> "=" <expression> ";" // Variable assignment/declaration
 
 <block> ::= "{" <statement>* "}"
 
-<assignment> ::= <identifier> "=" <expression> ";"
+<assignment> ::= <identifier> "=" <expression> ";" // Variable reassignment
 
-<coinflip> ::= "coinflip" "(" <expression> ")" <block> ("else" <block>)?
+<coinflip> ::= "coinflip" "(" <expression> ")" <block> ("ff15" <block>)? // If / else
 
-<respawn> ::= "respawn" "(" <expression> ")" <block>
+<go next> ::= "go next" "(" <expression> ")" <block> // While loop
 
-<ping> ::= "ping" "(" <expression> ")" ";"
+<ping> ::= "ping" "(" <expression> ")" ";" // Print function
 
-<return-stmt> ::= "return" <expression> ";"
+<recall-stmt> ::= "recall" <expression> ";" // Return statement
 
 <expression-stmt> ::= <expression> ";"
 
@@ -46,7 +50,7 @@ A programming language based on C syntax and League of Legends terms.
                | <unary-expr>
                | <call-expr>
                | <group-expr>
-               | <team-expr>
+               | <inventory-expr>
                | <duo-expr>
                | <index-expr>
 
@@ -56,17 +60,20 @@ A programming language based on C syntax and League of Legends terms.
 <unary-expr> ::= <unary-op> <expression>
 <unary-op> ::= "-" | "!"
 
-<call-expr> ::= <identifier> "(" <argument-list>? ")"
+<call-expr> ::= <identifier> "(" <argument-list>? ")" // Function call
 <argument-list> ::= <expression> | <expression> "," <argument-list>
 
-<group-expr> ::= "(" <expression> ")"
+<group-expr> ::= "(" <expression> ")" // Plain parenthesis
 
-<team-expr> ::= "[" <team-items>? "]"
-<team-items> ::= <expression> | <expression> "," <team-items>
+<duo-expr> ::= "(" <expression> "," <expression> ")" // Tuple
 
-<duo-expr> ::= "(" <expression> "," <expression> ")"
+<inventory-expr> ::= "[" <inventory-items>? "]" // List initialization
+<inventory-items> ::= <expression> | <expression> "," <inventory-items>
 
-<index-expr> ::= <expression> "[" <expression> "]"
+<shop-expr> ::= "{" <shop-items>? "}" // Map initialization
+<shop-items> ::= <duo-expr> | <duo-expr> "," <shop-items>
+
+//commented out <index-expr> ::= <expression> "[" <expression> "]" // Indexing into list
 
 <literal> ::= <integer> | <boolean> | <string> | <unit>
 <integer> ::= [0-9]+
@@ -79,8 +86,5 @@ A programming language based on C syntax and League of Legends terms.
          | "Chat"                           // string type
          | "Void"                           // unit type
          | "Duo" "<" <type> "," <type> ">"  // tuple type
-         | "Team" "<" <type> ">"            // list type
-         | <identifier>                     // user-defined type
-
-<identifier> ::= [a-zA-Z_][a-zA-Z0-9_]*
+         | "Inventory" "<" <type> ">"       // list type
 ```
