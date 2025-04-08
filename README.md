@@ -73,7 +73,7 @@ A programming language based on C syntax and League of Legends terms.
 <shop-expr> ::= "{" <shop-items>? "}" // Map initialization
 <shop-items> ::= <duo-expr> | <duo-expr> "," <shop-items>
 
-//commented out <index-expr> ::= <expression> "[" <expression> "]" // Indexing into list
+<index-expr> ::= <expression> "[" <expression> "]" // Indexing into list
 
 <literal> ::= <integer> | <boolean> | <string> | <unit>
 <integer> ::= [0-9]+
@@ -87,4 +87,5 @@ A programming language based on C syntax and League of Legends terms.
          | "Void"                           // unit type
          | "Duo" "<" <type> "," <type> ">"  // tuple type
          | "Inventory" "<" <type> ">"       // list type
+         | "Shop" "<" <type> "," <type> ">" // map type
 ```
