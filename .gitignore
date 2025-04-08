@@ -1,2 +1,8 @@
 debug/
 target/
+
+.vscode/
+
+.direnv/
+.devenv/
+.envrc
