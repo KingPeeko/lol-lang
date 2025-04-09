@@ -1,6 +1,6 @@
 // Tokens for the Summoner's Code lexer
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Identifier(String),
     Keyword(Keyword),
@@ -11,7 +11,7 @@ pub enum Token {
     Eof, // End of file
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Keyword {
     Nexus,
     Ability,
@@ -25,14 +25,13 @@ pub enum Keyword {
     False,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
     GoldLit(String),
     ChatLit(String),
-    VoidLit,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     Gold,
     Status,
@@ -43,7 +42,7 @@ pub enum Type {
     Shop,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Operator {
     Assignment, // as in 'buy a = 5;'
     // Binary operators
@@ -54,9 +53,9 @@ pub enum Operator {
     Modulo,
     Equals,
     NotEquals,
-    LessThan,
+    // LessThan,
     LessEquals,
-    GreaterThan,
+    // GreaterThan,
     GreaterEquals,
     And,
     Or,
@@ -64,7 +63,7 @@ pub enum Operator {
     Negate, // as in '!true'
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Symbol {
     ParenOpen,
     ParenClose,

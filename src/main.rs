@@ -1,5 +1,6 @@
 mod lexer;
 
 fn main() {
-    println!("Hello, world!");
+    let a = lexer::tokenize("hellosdfjodsfdjfoajo3o2j432423___324324o");
+    println!("{a:?}");
 }
