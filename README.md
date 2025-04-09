@@ -6,7 +6,7 @@ A programming language based on C syntax and League of Legends terms.
 ```
 <program> ::= <declaration>*
 
-<comment> ::= "/all" [^\n]*
+<comment> ::= "/all " [^\n]*
 
 <identifier> ::= [a-zA-Z_][a-zA-Z0-9_]*
 
