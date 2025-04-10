@@ -1,5 +1,6 @@
 mod tokens;
 mod lexer_impl;
+mod error;
 
 pub mod util;
 

@@ -1,4 +1,6 @@
 use super::tokens::*;
+use super::error::TokenizerError;
+use core::fmt;
 use std::str::FromStr;
 
 
@@ -166,14 +168,12 @@ fn parse_whole_input(input: &str) -> IResult<&str, Vec<Token>> {
         .parse(input)
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct TokenizerError;
 
 pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizerError> {
     match parse_whole_input(input) {
         Ok(( _, tokens )) => Ok(tokens),
-        Err(_e) => {
-            Err(TokenizerError)
+        Err(e) => {
+            Err(TokenizerError::from_nom_err(e, input))
         }
     }
 }
@@ -383,12 +383,35 @@ nexus() {
             Token::Eof
         ];
 
-        let Ok(result) = tokenize(input) else {
-            panic!("Tokenizing failed, it shouldn't have");
-        };
+        // let Ok(result) = tokenize(input) else {
+        //     panic!("Tokenizing failed, it shouldn't have");
+        // };
 
+        match tokenize(input) {
+            Ok(res) => assert_eq!(res, tokens),
+            Err(e) => panic!("{e}")
+        }
+    }
 
-        assert_eq!(result, tokens);
+    #[test]
+    fn test_tokenizer_fail() {
+        let input = 
+r#"
+nexus() {
+    /all noob team go die
+    buy my_variable = "Hello world!";
+    ping(my_variable); /all this is a print statement; buy x = 5;
+    buy 10_swords: Gold = 9999; /all this fails on '10_swords'
+    recall 5 + 9;
+} /all This is the best language ever!
+"#;
+
+        let result = tokenize(input);
+        // println!("{result:?}");
+        if let Err(ref e) = result {
+            println!("hello{e}");
+        }
+        assert!(result.is_err());
     }
 }
 
