@@ -1,7 +1,7 @@
 //  AST for Summoner's Code.
 
 // All expressions of the language. Derives Debug and Clone.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Integer(i64),
     Boolean(bool),
@@ -32,7 +32,7 @@ pub enum Expr {
 }
 
 // Binary operators.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOp {
     Add,            // +
     Subtract,       // -
@@ -50,7 +50,7 @@ pub enum BinaryOp {
 }
 
 // Unary operators.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOp {
     Negate,         // -
     Not,            // !
@@ -68,8 +68,10 @@ pub enum Type {
     Shop(Box<Type>, Box<Type>), // map
 }
 
+
+
 // Statements of the language.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     Block(Vec<Stmt>),
     ItemDecl {
@@ -100,14 +102,14 @@ pub enum Stmt {
 }
 
 //  Parameters.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Param {
     pub name: String,
     pub ty: Type,         // Parameter type, cannot be named type because of syntax.
 }
 
 // Declarations of the language.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Decl {
     Ability {
         name: String,
@@ -126,7 +128,7 @@ pub enum Decl {
 }
 
 // The program itself.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Program {
     pub declarations: Vec<Decl>,
 }

@@ -1,4 +1,4 @@
-mod tokens;
+pub mod tokens;
 mod lexer_impl;
 mod error;
 
