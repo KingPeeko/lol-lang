@@ -308,6 +308,35 @@ impl<'a> Parser<'a> {
     // fn parse_binary_expr(&mut self) -> Result<Expr, Err> {
     //
     // }
+
+    fn parse_expr(&mut self) -> Result<crate::ast::Expr, Err> {
+        todo!();
+    }
+
+    // Parses the Inventory expression, aka. a list. Returns an Ok with the Inventory if syntax is correct.
+    fn parse_inventory_expr(&mut self) -> Result<Expr, Err> {
+        expect!(self.stream, Token::Symbol(Symbol::SquareOpen))?;
+
+        let mut items = Vec::new();
+
+        if let _ = peek_validate!(self.stream, Token::Symbol(Symbol::SquareClose)) {
+            self.stream.move_forward(1);
+            return Ok(Expr::Inventory(items));
+        }
+
+        loop {
+            items.push(self.parse_expr()?);
+            if let _ = peek_validate!(self.stream, Token::Symbol(Symbol::Comma)) {
+                self.stream.move_forward(1);
+            } else {
+                break;
+            }
+        }
+
+        expect!(self.stream, Token::Symbol(Symbol::SquareClose))?;
+
+        return Ok(Expr::Inventory(items));
+    }
 }
 
 
