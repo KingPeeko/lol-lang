@@ -428,23 +428,28 @@ fn parse_index_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
 // STATEMENT PRASING SECTION
 
 // Parse statements
-fn parse_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
-    alt((parse_ping_stmt, parse_gonext_stmt, parse_block_stmt)).parse(input)
+fn parse_statement(input: TokenStream) -> IResult<TokenStream, Statement> {
+    alt((
+        parse_ping_statement,
+        parse_gonext_statement,
+        parse_block_statement,
+    ))
+    .parse(input)
 }
 
 // Parse into Stmt::Block
-fn parse_block_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
+fn parse_block_statement(input: TokenStream) -> IResult<TokenStream, Statement> {
     (
         symbol(Symbol::CurlyOpen),
-        many0(parse_stmt),
+        many0(parse_statement),
         symbol(Symbol::CurlyClose),
     )
-        .map(|(_, statements, _)| Stmt::Block(statements))
+        .map(|(_, statements, _)| Statement::Block(statements))
         .parse(input)
 }
 
-// Parse into Stmt::Ping
-fn parse_ping_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
+// Parse into Statement::Ping
+fn parse_ping_statement(input: TokenStream) -> IResult<TokenStream, Statement> {
     (
         keyword(Keyword::Ping),
         symbol(Symbol::ParenOpen),
@@ -452,22 +457,22 @@ fn parse_ping_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
         symbol(Symbol::ParenClose),
         symbol(Symbol::Semicolon),
     )
-        .map(|(_, _, printed_value, _, _)| Stmt::Ping {
+        .map(|(_, _, printed_value, _, _)| Statement::Ping {
             value: (printed_value),
         })
         .parse(input)
 }
 
-// Parse into Stmt::GoNext
-fn parse_gonext_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
+// Parse into Statement::GoNext
+fn parse_gonext_statement(input: TokenStream) -> IResult<TokenStream, Statement> {
     (
         keyword(Keyword::GoNext),
         symbol(Symbol::ParenOpen),
         parse_expr,
         symbol(Symbol::ParenClose),
-        parse_block_stmt,
+        parse_block_statement,
     )
-        .map(|(_, _, condition, _, block)| Stmt::GoNext {
+        .map(|(_, _, condition, _, block)| Statement::GoNext {
             condition: (condition),
             body: Box::new(block),
         })
@@ -486,7 +491,7 @@ fn parse_nexus(input: TokenStream) -> IResult<TokenStream, Decl> {
         symbol(Symbol::ParenOpen),
         symbol(Symbol::ParenClose),
         symbol(Symbol::CurlyOpen),
-        many0(parse_stmt),
+        many0(parse_statement),
         symbol(Symbol::CurlyClose),
     )
         .parse(input)?;
@@ -504,7 +509,7 @@ fn parse_ability(input: TokenStream) -> IResult<TokenStream, Decl> {
         symbol(Symbol::Arrow),
         parse_type,
         symbol(Symbol::CurlyOpen),
-        many0(parse_stmt),
+        many0(parse_statement),
         symbol(Symbol::CurlyClose),
     )
         .map(

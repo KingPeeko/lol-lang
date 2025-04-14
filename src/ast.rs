@@ -70,8 +70,8 @@ pub enum Type {
 
 // Statements of the language.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Stmt {
-    Block(Vec<Stmt>),
+pub enum Statement {
+    Block(Vec<Statement>),
     ItemDecl {
         name: String,
         ty: Type,
@@ -83,12 +83,12 @@ pub enum Stmt {
     },
     Coinflip {
         condition: Expr,
-        then_branch: Box<Stmt>,
-        else_branch: Option<Box<Stmt>>,
+        then_branch: Box<Statement>,
+        else_branch: Option<Box<Statement>>,
     },
     GoNext {
         condition: Expr,
-        body: Box<Stmt>,
+        body: Box<Statement>,
     },
     Ping {
         value: Expr,
@@ -113,7 +113,7 @@ pub enum Decl {
         name: String,
         params: Vec<Param>,
         return_type: Type,
-        body: Vec<Stmt>,
+        body: Vec<Statement>,
     },
     Item {
         name: String,
@@ -121,7 +121,7 @@ pub enum Decl {
         initializer: Expr,
     },
     Nexus {
-        body: Vec<Stmt>,
+        body: Vec<Statement>,
     },
 }
 

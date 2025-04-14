@@ -18,8 +18,8 @@ A programming language based on C syntax and League of Legends terms.
               | <coinflip>
               | <go next>
               | <ping>
-              | <recall-stmt>
-              | <expression-stmt>
+              | <recall-statement>
+              | <expression-statement>
 
 <nexus-decl> ::= "nexus" "(" ")" "{" <statement>* "}" // Main function
 
@@ -40,9 +40,9 @@ A programming language based on C syntax and League of Legends terms.
 
 <ping> ::= "ping" "(" <expression> ")" ";" // Print function
 
-<recall-stmt> ::= "recall" <expression> ";" // Return statement
+<recall-statement> ::= "recall" <expression> ";" // Return statement
 
-<expression-stmt> ::= <expression> ";"
+<expression-statement> ::= <expression> ";"
 
 <expression> ::= <literal>
                | <identifier>
