@@ -435,6 +435,7 @@ fn parse_statement(input: TokenStream) -> IResult<TokenStream, Statement> {
         parse_gonext_statement,
         parse_block_statement,
         parse_coinflip_statement,
+        parse_item.map(|i| i.into()),
     ))
     .parse(input)
 }
@@ -504,7 +505,7 @@ fn parse_coinflip_statement(input: TokenStream) -> IResult<TokenStream, Statemen
 
 /// Try to parse input into a declaration in order of nexus -> ability -> item
 fn parse_decl(input: TokenStream) -> IResult<TokenStream, Decl> {
-    alt((parse_nexus, parse_ability, parse_item)).parse(input)
+    alt((parse_nexus, parse_ability, parse_item.map(|i| i.into()))).parse(input)
 }
 
 /// Parse the nexus function (essentially main function) to Decl::Nexus
@@ -560,10 +561,36 @@ fn parse_param(input: TokenStream) -> IResult<TokenStream, Param> {
         .parse(input)
 }
 
+struct Item {
+    pub name: String,
+    pub ty: Type,
+    pub initializer: Expr,
+}
+
+impl Into<Decl> for Item {
+    fn into(self) -> Decl {
+        Decl::Item {
+            name: self.name,
+            ty: self.ty,
+            initializer: self.initializer,
+        }
+    }
+}
+
+impl Into<Statement> for Item {
+    fn into(self) -> Statement {
+        Statement::ItemDecl {
+            name: self.name,
+            ty: self.ty,
+            initializer: self.initializer,
+        }
+    }
+}
+
 /// Parse items (variable) to Decl::Item
 ///
 /// buy <name>: <type> = <expr>
-fn parse_item(input: TokenStream) -> IResult<TokenStream, Decl> {
+fn parse_item(input: TokenStream) -> IResult<TokenStream, Item> {
     (
         keyword(Keyword::Buy),
         identifier,
@@ -573,7 +600,7 @@ fn parse_item(input: TokenStream) -> IResult<TokenStream, Decl> {
         parse_expr,
         symbol(Symbol::Semicolon),
     )
-        .map(|(_, name, _, ty, _, initializer, _)| Decl::Item {
+        .map(|(_, name, _, ty, _, initializer, _)| Item {
             name,
             ty,
             initializer,
