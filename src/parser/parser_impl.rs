@@ -2,6 +2,7 @@ use super::token_stream::TokenStream;
 use crate::ast::*;
 use crate::lexer::tokens::{Keyword, Literal, Operator, Symbol, Token};
 
+use nom::combinator::opt;
 use nom::{
     branch::alt,
     bytes::complete::take,
@@ -433,6 +434,7 @@ fn parse_statement(input: TokenStream) -> IResult<TokenStream, Statement> {
         parse_ping_statement,
         parse_gonext_statement,
         parse_block_statement,
+        parse_coinflip_statement,
     ))
     .parse(input)
 }
@@ -476,6 +478,25 @@ fn parse_gonext_statement(input: TokenStream) -> IResult<TokenStream, Statement>
             condition: (condition),
             body: Box::new(block),
         })
+        .parse(input)
+}
+
+fn parse_coinflip_statement(input: TokenStream) -> IResult<TokenStream, Statement> {
+    (
+        keyword(Keyword::Coinflip),
+        symbol(Symbol::ParenOpen),
+        parse_expr,
+        symbol(Symbol::ParenClose),
+        parse_block_statement,
+        opt((keyword(Keyword::Ff15), parse_block_statement)),
+    )
+        .map(
+            |(_, _, condition, _, then_branch, ff15)| Statement::Coinflip {
+                condition,
+                then_branch: Box::new(then_branch),
+                else_branch: ff15.map(|(_, else_branch)| Box::new(else_branch)),
+            },
+        )
         .parse(input)
 }
 
