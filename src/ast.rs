@@ -130,3 +130,33 @@ pub enum Decl {
 pub struct Program {
     pub declarations: Vec<Decl>,
 }
+
+pub struct InvalidBinaryOp;
+
+impl TryFrom<crate::lexer::Token> for BinaryOp {
+
+    type Error = InvalidBinaryOp;
+
+    fn try_from(value: crate::lexer::Token) -> Result<Self, Self::Error> {
+        use crate::lexer::{Operator::*, Symbol::*, Token};
+
+        match value {
+            Token::Operator(Plus) => Ok(Self::Add),
+            Token::Operator(Minus) => Ok(Self::Subtract),
+            Token::Operator(Mult) => Ok(Self::Multiply),
+            Token::Operator(Divide) => Ok(Self::Divide),
+            Token::Operator(Modulo) => Ok(Self::Modulo),
+            Token::Operator(Equals) => Ok(Self::Equal),
+            Token::Operator(NotEquals) => Ok(Self::NotEqual),
+            Token::Operator(LessEquals) => Ok(Self::LessEqual),
+            Token::Operator(GreaterEquals) => Ok(Self::GreaterEqual),
+            Token::Operator(And) => Ok(Self::And),
+            Token::Operator(Or) => Ok(Self::Or),
+
+            Token::Symbol(AngleOpen) => Ok(Self::Less),
+            Token::Symbol(AngleClose) => Ok(Self::Greater),
+
+            _ => Err(InvalidBinaryOp),
+        }
+    }
+}
