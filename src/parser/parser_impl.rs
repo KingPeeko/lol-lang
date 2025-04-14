@@ -318,6 +318,28 @@ fn parse_duo_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
         .parse(input)
 }
 
+fn parse_shop_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
+    (
+        symbol(Symbol::CurlyOpen),
+        separated_list0(symbol(Symbol::Comma), parse_shop_item),
+        symbol(Symbol::CurlyClose),
+    )
+        .map(|(_, vec, _)| Expr::Shop(vec))
+        .parse(input)
+}
+
+fn parse_shop_item(input: TokenStream) -> IResult<TokenStream, (Expr, Expr)> {
+    (
+        symbol(Symbol::ParenOpen),
+        parse_expr,
+        symbol(Symbol::Comma),
+        parse_expr,
+        symbol(Symbol::ParenClose),
+    )
+        .map(|(_, expr1, _, expr2, _)| (expr1, expr2))
+        .parse(input)
+}
+
 fn parse_call_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
     (
         identifier,
@@ -592,6 +614,30 @@ mod test {
         );
 
         let (_, inv) = parse_duo_expr.parse(TokenStream::new(&tokens)).unwrap();
+
+        assert_eq!(inv, should_be);
+    }
+
+    #[test]
+    #[ignore = "needs parse_expr to be complete"]
+    fn test_parse_shop_expr() {
+        use crate::lexer::util::*;
+        let tokens = [
+            sym("{"),
+            sym("("),
+            chat_lit("hello world"),
+            sym(","),
+            keyword("true"),
+            sym(")"),
+            sym("}"),
+        ];
+
+        let should_be = Expr::Shop(vec![(
+            Expr::String("hello world".to_string()),
+            Expr::Boolean(true),
+        )]);
+
+        let (_, inv) = parse_shop_expr.parse(TokenStream::new(&tokens)).unwrap();
 
         assert_eq!(inv, should_be);
     }
