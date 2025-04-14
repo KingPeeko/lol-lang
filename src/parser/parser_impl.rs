@@ -306,6 +306,18 @@ fn parse_inventory_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
         .parse(input)
 }
 
+fn parse_duo_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
+    (
+        symbol(Symbol::ParenOpen),
+        parse_expr,
+        symbol(Symbol::Comma),
+        parse_expr,
+        symbol(Symbol::ParenClose),
+    )
+        .map(|(_, expr1, _, expr2, _)| Expr::Duo(Box::new(expr1), Box::new(expr2)))
+        .parse(input)
+}
+
 fn parse_call_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
     (
         identifier,
@@ -558,6 +570,28 @@ mod test {
         let (_, inv) = parse_inventory_expr
             .parse(TokenStream::new(&tokens))
             .unwrap();
+
+        assert_eq!(inv, should_be);
+    }
+
+    #[test]
+    #[ignore = "needs parse_expr to be complete"]
+    fn test_parse_duo_expr() {
+        use crate::lexer::util::*;
+        let tokens = [
+            sym("("),
+            chat_lit("hello world"),
+            sym(","),
+            keyword("true"),
+            sym(")"),
+        ];
+
+        let should_be = Expr::Duo(
+            Box::new(Expr::String("hello world".to_string())),
+            Box::new(Expr::Boolean(true)),
+        );
+
+        let (_, inv) = parse_duo_expr.parse(TokenStream::new(&tokens)).unwrap();
 
         assert_eq!(inv, should_be);
     }
