@@ -429,6 +429,32 @@ impl<'a> Parser<'a> {
 
         Ok(Expr::Duo(Box::new(expr1), Box::new(expr2)))
     }
+
+    fn parse_shop_expr(&mut self) -> Result<Expr, Err> {
+        expect!(self.stream, Token::Symbol(Symbol::CurlyOpen))?;
+        let mut duos = Vec::new();
+
+        loop {
+            duos.push(self.parse_duo_expr()?);
+
+            match expect!(self.stream, Token::Symbol(Symbol::Comma)) {
+                Err(_) => break,
+                _ => (),
+            };
+        }
+
+        expect!(self.stream, Token::Symbol(Symbol::CurlyClose))?;
+
+        let tuples = duos
+            .into_iter()
+            .map(|duo| match duo {
+                Expr::Duo(lhs, rhs) => (*lhs, *rhs),
+                _ => unreachable!("parse_duo_expr should never return anything but duos"),
+            })
+            .collect();
+
+        return Ok(Expr::Shop(tuples));
+    }
 }
 
 #[cfg(test)]
