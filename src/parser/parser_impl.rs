@@ -481,10 +481,14 @@ fn parse_gonext_statement(input: TokenStream) -> IResult<TokenStream, Statement>
 
 // DECLARATION PARSING SECTION
 
+/// Try to parse input into a declaration in order of nexus -> ability -> item
 fn parse_decl(input: TokenStream) -> IResult<TokenStream, Decl> {
     alt((parse_nexus, parse_ability, parse_item)).parse(input)
 }
 
+/// Parse the nexus function (essentially main function) to Decl::Nexus
+///
+/// nexus() { <statement> )
 fn parse_nexus(input: TokenStream) -> IResult<TokenStream, Decl> {
     let (rest, (_, _, _, _, statements, _)) = (
         keyword(Keyword::Nexus),
@@ -499,6 +503,9 @@ fn parse_nexus(input: TokenStream) -> IResult<TokenStream, Decl> {
     Ok((rest, Decl::Nexus { body: statements }))
 }
 
+/// Parse abilities (non-main functions) to Decl::Ability
+///
+/// ability <name>(<params>) -> <return type> { <statement> }
 fn parse_ability(input: TokenStream) -> IResult<TokenStream, Decl> {
     (
         keyword(Keyword::Ability),
@@ -523,12 +530,18 @@ fn parse_ability(input: TokenStream) -> IResult<TokenStream, Decl> {
         .parse(input)
 }
 
+/// Parse function parameters to Param
+///
+/// <name>: <type>
 fn parse_param(input: TokenStream) -> IResult<TokenStream, Param> {
     (identifier, symbol(Symbol::Colon), parse_type)
         .map(|(name, _, ty)| Param { name, ty })
         .parse(input)
 }
 
+/// Parse items (variable) to Decl::Item
+///
+/// buy <name>: <type> = <expr>
 fn parse_item(input: TokenStream) -> IResult<TokenStream, Decl> {
     (
         keyword(Keyword::Buy),
