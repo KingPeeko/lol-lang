@@ -312,7 +312,6 @@ fn parse_inventory_items(input: TokenStream) -> IResult<TokenStream, Vec<Expr>> 
     separated_list0(symbol(Symbol::Comma), parse_expr).parse(input)
 }
 
-
 // STATEMENT PRASING SECTION
 
 fn parse_ping_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
@@ -323,13 +322,17 @@ fn parse_ping_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
         symbol(Symbol::ParenClose),
         symbol(Symbol::Semicolon),
     )
-    .map(|(_, _, printed_value, _, _)| Stmt::Ping { value: (printed_value) })
-    .parse(input)
+        .map(|(_, _, printed_value, _, _)| Stmt::Ping {
+            value: (printed_value),
+        })
+        .parse(input)
 }
 
 fn parse_statement(input: TokenStream) -> IResult<TokenStream, Stmt> {
     todo!()
 }
+
+// DECLARATION PARSING SECTION
 
 fn parse_decl(input: TokenStream) -> IResult<TokenStream, Decl> {
     alt((parse_nexus, parse_ability, parse_item)).parse(input)
