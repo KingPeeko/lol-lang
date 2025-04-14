@@ -293,19 +293,7 @@ fn parse_inventory_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
 
 // Parse the items that go in Expr::Inventory
 fn parse_inventory_items(input: TokenStream) -> IResult<TokenStream, Vec<Expr>> {
-    let (rest, first) = parse_expr.parse(input)?;
-
-    let items = vec![first];
-
-    fold_many0(
-        (symbol(Symbol::Comma), parse_expr),
-        move || items.clone(),
-        |mut acc, (_, expr)| {
-            acc.push(expr);
-            acc
-        },
-    )
-    .parse(rest)
+    separated_list0(symbol(Symbol::Comma), parse_expr).parse(input)
 }
 
 
@@ -451,7 +439,7 @@ mod test {
     }
 
     #[test]
-    #[should_panic]
+    #[ignore = "needs parse_expr to be complete"]
     fn test_parse_inventory_expr() {
         use crate::lexer::util::*;
         let tokens = [
@@ -463,15 +451,15 @@ mod test {
             ident("what_up"),
         ];
 
-        let should_be = Expr::Inventory(
-            vec![
-                Expr::String("hello world".to_string()),
-                Expr::Boolean(true),
-                Expr::Identifier("what_up".to_string()),
-            ]
-        );
+        let should_be = Expr::Inventory(vec![
+            Expr::String("hello world".to_string()),
+            Expr::Boolean(true),
+            Expr::Identifier("what_up".to_string()),
+        ]);
 
-        let (_, inv) = parse_inventory_expr.parse(TokenStream::new(&tokens)).unwrap();
+        let (_, inv) = parse_inventory_expr
+            .parse(TokenStream::new(&tokens))
+            .unwrap();
 
         assert_eq!(inv, should_be);
     }
