@@ -356,6 +356,20 @@ fn parse_call_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
         .parse(input)
 }
 
+fn parse_index_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
+    (
+        parse_expr,
+        symbol(Symbol::SquareOpen),
+        parse_expr,
+        symbol(Symbol::SquareClose),
+    )
+        .map(|(inventory, _, idx, _)| Expr::Index {
+            object: Box::new(inventory),
+            index: Box::new(idx),
+        })
+        .parse(input)
+}
+
 // STATEMENT PRASING SECTION
 
 // Parse statements
@@ -676,7 +690,23 @@ mod test {
 
     #[test]
     #[ignore = "needs parse_expr to be complete"]
-    fn test_call_expr() {
+    fn test_parse_index_expr() {
+        use crate::lexer::util::*;
+        let tokens = [ident("my_list"), sym("["), gold_lit(2), sym("]")];
+
+        let should_be = Expr::Index {
+            object: Box::new(Expr::Identifier("my_list".to_string())),
+            index: Box::new(Expr::Integer(2)),
+        };
+
+        let (_, result) = parse_index_expr.parse(TokenStream::new(&tokens)).unwrap();
+
+        assert_eq!(result, should_be);
+    }
+
+    #[test]
+    #[ignore = "needs parse_expr to be complete"]
+    fn test_parse_call_expr() {
         use crate::lexer::util::*;
         let tokens = [
             ident("yap"),
