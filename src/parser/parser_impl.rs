@@ -292,6 +292,23 @@ impl<'a> Parser<'a> {
         // Ok(expr)
     }
 
+    fn parse_unary_expr(&mut self) -> Result<Expr, Err> {
+        todo!(); // needs parse_expr
+        let op = expect_unwrap!(self.stream, Token::Operator)?;
+        let expr = self.parse_expr()?;
+
+        let operator = match op {
+            crate::lexer::Operator::Not => Ok(UnaryOp::Not),
+            crate::lexer::Operator::Minus => Ok(UnaryOp::Negate),
+            _ => Err(ParseError::ParseLitError),
+        }?;
+
+        Ok(Expr::Unary {
+            operator,
+            right: Box::new(expr),
+        })
+    }
+
     fn parse_binary_expr(&mut self) -> Result<Expr, Err> {
         todo!(); // needs parse_expr
                  // In case completing the parse fails, save current position to return to later
@@ -356,7 +373,7 @@ impl<'a> Parser<'a> {
     ) -> Result<Expr, Err> {
         let binary_op = match op_token {
             Operator::Plus => BinaryOp::Add,
-            Operator::Minus => BinaryOp::Subtract,
+            Operator::Not => BinaryOp::Subtract,
             Operator::Mult => BinaryOp::Multiply,
             Operator::Divide => BinaryOp::Divide,
             Operator::Modulo => BinaryOp::Modulo,

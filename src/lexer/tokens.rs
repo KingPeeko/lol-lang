@@ -60,7 +60,7 @@ pub enum Operator {
     And,
     Or,
     // Unary operators
-    Negate, // as in '!true'
+    Not, // as in '!true'
 }
 
 #[derive(Debug, Clone, PartialEq)]

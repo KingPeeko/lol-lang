@@ -92,7 +92,7 @@ impl FromStr for Operator {
             ">=" => Ok(GreaterEquals),
             "&&" => Ok(And),
             "||" => Ok(Or),
-            "!" => Ok(Negate),
+            "!" => Ok(Not),
 
             _ => Err(ParseOperatorError),
         }

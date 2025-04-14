@@ -307,7 +307,7 @@ mod tests {
             GreaterEquals,
             And,
             Or,
-            Negate,
+            Not,
         ];
         test_pair!(operators, operator_enums, parse_operator, Token::Operator);
     }
@@ -364,7 +364,7 @@ mod tests {
     #[test]
     fn test_tokenizer() {
         let input = r#"
-          
+
 nexus() {
 /all noob team go die
     buy my_variable = "Hello world!";
@@ -372,7 +372,7 @@ nexus() {
     recall 5 + 9;
 } /all This is the best language ever!
 
-   
+
    "#;
 
         let tokens = vec![
