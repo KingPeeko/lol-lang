@@ -96,7 +96,6 @@ pub enum Statement {
     Recall {
         value: Option<Expr>,
     },
-    Expression(Expr),
 }
 
 //  Parameters.

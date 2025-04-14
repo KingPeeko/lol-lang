@@ -19,7 +19,6 @@ A programming language based on C syntax and League of Legends terms.
               | <go next>
               | <ping>
               | <recall-statement>
-              | <expression-statement>
 
 <nexus-decl> ::= "nexus" "(" ")" "{" <statement>* "}" // Main function
 
@@ -41,8 +40,6 @@ A programming language based on C syntax and League of Legends terms.
 <ping> ::= "ping" "(" <expression> ")" ";" // Print function
 
 <recall-statement> ::= "recall" <expression> ";" // Return statement
-
-<expression-statement> ::= <expression> ";"
 
 <expression> ::= <literal>
                | <identifier>
