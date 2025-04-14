@@ -5,7 +5,7 @@ use super::error::ParseError;
 pub struct TokenStream<'a> {
     tokens: &'a [Token],
     pos: usize,
-    saved_pos: usize,
+    saved_poses: Vec<usize>,
 }
 
 type Err = ParseError;
@@ -15,7 +15,7 @@ impl<'a> TokenStream<'a> {
         Self {
             tokens,
             pos: 0,
-            saved_pos: 0,
+            saved_poses: Vec::new(),
         }
     }
 
@@ -28,12 +28,29 @@ impl<'a> TokenStream<'a> {
         self.tokens.get(self.pos + ahead_by).ok_or(ParseError::Eof)
     }
 
+    // Save pos to saved_poses stack
     pub fn save_pos(&mut self) {
-        self.saved_pos = self.pos;
+        self.saved_poses.push(self.pos);
     }
 
-    pub fn load_pos(&mut self) {
-        self.pos = self.saved_pos;
+    // Load the last saved position from stack, must also call pop_saved_pos after if the loaded
+    // pos should be removed from the stack
+    pub fn load_pos(&mut self) -> Result<(), Err> {
+        let last_pos = self.saved_poses.last();
+
+        match last_pos {
+            Some(n) => {
+                self.pos = *n;
+                Ok(())
+            } 
+
+            None => Err(ParseError::NoSavedPos),
+        }
+    }
+
+    // Pop the last saved position from stack
+    pub fn pop_saved_pos(&mut self) -> Result<usize, Err> {
+        self.saved_poses.pop().ok_or(ParseError::NoSavedPos)
     }
 
     // Get current token and move forward
