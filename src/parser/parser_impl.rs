@@ -10,7 +10,7 @@ use nom::{
     bytes::complete::take,
     combinator::value,
     error::{ErrorKind, ParseError},
-    multi::fold_many0,
+    multi::separated_list0,
     Err::Error,
     IResult, Parser,
 };
@@ -282,39 +282,85 @@ fn parse_binary_op(input: TokenStream) -> IResult<TokenStream, BinaryOp> {
     any_token.map_res(BinaryOp::try_from).parse(input)
 }
 
+// Parse into Expr::Unary
+fn parse_unary_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
+    (parse_unary_op, parse_expr)
+        .map(|(op, expr)| Expr::Unary {
+            operator: op,
+            right: Box::new(expr),
+        })
+        .parse(input)
+}
+
+// Parse into UnaryOp
+fn parse_unary_op(input: TokenStream) -> IResult<TokenStream, UnaryOp> {
+    any_token.map_res(UnaryOp::try_from).parse(input)
+}
+
 // Parse into Expr::Inventory
 fn parse_inventory_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
     (
         symbol(Symbol::SquareOpen),
-        parse_inventory_items,
+        separated_list0(symbol(Symbol::Comma), parse_expr),
         symbol(Symbol::SquareClose),
     )
         .map(|(_, items, _)| Expr::Inventory(items))
         .parse(input)
 }
 
-// Parse the items that go in Expr::Inventory
-fn parse_inventory_items(input: TokenStream) -> IResult<TokenStream, Vec<Expr>> {
-    let (rest, first) = parse_expr.parse(input)?;
-
-    let items = vec![first];
-
-    fold_many0(
-        (symbol(Symbol::Comma), parse_expr),
-        move || items.clone(),
-        |mut acc, (_, expr)| {
-            acc.push(expr);
-            acc
-        },
+fn parse_duo_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
+    (
+        symbol(Symbol::ParenOpen),
+        parse_expr,
+        symbol(Symbol::Comma),
+        parse_expr,
+        symbol(Symbol::ParenClose),
     )
-    .parse(rest)
+        .map(|(_, expr1, _, expr2, _)| Expr::Duo(Box::new(expr1), Box::new(expr2)))
+        .parse(input)
+}
+
+fn parse_shop_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
+    (
+        symbol(Symbol::CurlyOpen),
+        separated_list0(symbol(Symbol::Comma), parse_shop_item),
+        symbol(Symbol::CurlyClose),
+    )
+        .map(|(_, vec, _)| Expr::Shop(vec))
+        .parse(input)
+}
+
+fn parse_shop_item(input: TokenStream) -> IResult<TokenStream, (Expr, Expr)> {
+    (
+        symbol(Symbol::ParenOpen),
+        parse_expr,
+        symbol(Symbol::Comma),
+        parse_expr,
+        symbol(Symbol::ParenClose),
+    )
+        .map(|(_, expr1, _, expr2, _)| (expr1, expr2))
+        .parse(input)
+}
+
+fn parse_call_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
+    (
+        identifier,
+        symbol(Symbol::ParenOpen),
+        separated_list0(symbol(Symbol::Comma), parse_expr),
+        symbol(Symbol::ParenClose),
+    )
+        .map(|(func_name, _, args, _)| Expr::Call {
+            callee: func_name,
+            args,
+        })
+        .parse(input)
 }
 
 // STATEMENT PRASING SECTION
 
 // Parse statements
 fn parse_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
-    alt((parse_ping_stmt, parse_gonext_stmt)).parse(input)
+    alt((parse_ping_stmt, parse_gonext_stmt, parse_block_stmt,)).parse(input)
 }
 
 // Parse into Stmt::Block
@@ -355,6 +401,75 @@ fn parse_gonext_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
         .map(|(_, _, condition, _, block)| Stmt::GoNext {
             condition: (condition),
             body: Box::new(block),
+        })
+        .parse(input)
+    }
+
+
+// DECLARATION PARSING SECTION
+
+fn parse_decl(input: TokenStream) -> IResult<TokenStream, Decl> {
+    alt((parse_nexus, parse_ability, parse_item)).parse(input)
+}
+
+fn parse_nexus(input: TokenStream) -> IResult<TokenStream, Decl> {
+    let (rest, (_, _, _, _, statements, _)) = (
+        keyword(Keyword::Nexus),
+        symbol(Symbol::ParenOpen),
+        symbol(Symbol::ParenClose),
+        symbol(Symbol::CurlyOpen),
+        many0(parse_stmt),
+        symbol(Symbol::CurlyClose),
+    )
+        .parse(input)?;
+
+    return Ok((rest, Decl::Nexus { body: statements }));
+}
+
+fn parse_ability(input: TokenStream) -> IResult<TokenStream, Decl> {
+    (
+        keyword(Keyword::Ability),
+        identifier,
+        symbol(Symbol::ParenOpen),
+        separated_list0(symbol(Symbol::Comma), parse_param),
+        symbol(Symbol::ParenClose),
+        symbol(Symbol::Arrow),
+        parse_type,
+        symbol(Symbol::CurlyOpen),
+        many0(parse_stmt),
+        symbol(Symbol::CurlyClose),
+    )
+        .map(
+            |(_, name, _, params, _, _, return_type, _, statements, _)| Decl::Ability {
+                name,
+                params,
+                return_type,
+                body: statements,
+            },
+        )
+        .parse(input)
+}
+
+fn parse_param(input: TokenStream) -> IResult<TokenStream, Param> {
+    (identifier, symbol(Symbol::Comma), parse_type)
+        .map(|(name, _, ty)| Param { name, ty })
+        .parse(input)
+}
+
+fn parse_item(input: TokenStream) -> IResult<TokenStream, Decl> {
+    (
+        keyword(Keyword::Buy),
+        identifier,
+        symbol(Symbol::Comma),
+        parse_type,
+        operator(Operator::Equals),
+        parse_expr,
+        symbol(Symbol::Semicolon),
+    )
+        .map(|(_, name, _, ty, _, initializer, _)| Decl::Item {
+            name,
+            ty,
+            initializer,
         })
         .parse(input)
 }
@@ -487,7 +602,7 @@ mod test {
     }
 
     #[test]
-    #[should_panic]
+    #[ignore = "needs parse_expr to be complete"]
     fn test_parse_inventory_expr() {
         use crate::lexer::util::*;
         let tokens = [
@@ -497,6 +612,7 @@ mod test {
             keyword("true"),
             sym(","),
             ident("what_up"),
+            sym("]"),
         ];
 
         let should_be = Expr::Inventory(vec![
@@ -512,24 +628,98 @@ mod test {
         assert_eq!(inv, should_be);
     }
 
-    //
-    // #[test]
-    // fn test_parse_binary_expr() {
-    //     todo!(); // Needs parse_expr first
-    //     let tokens = [gold_lit(5000), op("*"), op("-"), gold_lit(1)];
-    //
-    //     let mut parser = Parser::new(&tokens);
-    //     let result = parser.parse_binary_expr().unwrap();
-    //
-    //     let should_be = Expr::Binary {
-    //         left: Box::new(Expr::Integer(5000)),
-    //         operator: BinaryOp::Multiply,
-    //         right: Box::new(Expr::Unary {
-    //             operator: UnaryOp::Negate,
-    //             right: Box::new(Expr::Integer(1)),
-    //         }),
-    //     };
-    //
-    //     assert_eq!(result, should_be);
-    // }
+    #[test]
+    #[ignore = "needs parse_expr to be complete"]
+    fn test_parse_duo_expr() {
+        use crate::lexer::util::*;
+        let tokens = [
+            sym("("),
+            chat_lit("hello world"),
+            sym(","),
+            keyword("true"),
+            sym(")"),
+        ];
+
+        let should_be = Expr::Duo(
+            Box::new(Expr::String("hello world".to_string())),
+            Box::new(Expr::Boolean(true)),
+        );
+
+        let (_, inv) = parse_duo_expr.parse(TokenStream::new(&tokens)).unwrap();
+
+        assert_eq!(inv, should_be);
+    }
+
+    #[test]
+    #[ignore = "needs parse_expr to be complete"]
+    fn test_parse_shop_expr() {
+        use crate::lexer::util::*;
+        let tokens = [
+            sym("{"),
+            sym("("),
+            chat_lit("hello world"),
+            sym(","),
+            keyword("true"),
+            sym(")"),
+            sym("}"),
+        ];
+
+        let should_be = Expr::Shop(vec![(
+            Expr::String("hello world".to_string()),
+            Expr::Boolean(true),
+        )]);
+
+        let (_, inv) = parse_shop_expr.parse(TokenStream::new(&tokens)).unwrap();
+
+        assert_eq!(inv, should_be);
+    }
+
+    #[test]
+    #[ignore = "needs parse_expr to be complete"]
+    fn test_call_expr() {
+        use crate::lexer::util::*;
+        let tokens = [
+            ident("yap"),
+            sym("("),
+            chat_lit("hello world"),
+            sym(","),
+            keyword("true"),
+            sym(","),
+            ident("what_up"),
+            sym(")"),
+        ];
+
+        let should_be = Expr::Call {
+            callee: "yap".to_string(),
+            args: vec![
+                Expr::String("hello world".to_string()),
+                Expr::Boolean(true),
+                Expr::Identifier("what_up".to_string()),
+            ],
+        };
+
+        let (_, result) = parse_call_expr.parse(TokenStream::new(&tokens)).unwrap();
+
+        assert_eq!(result, should_be);
+    }
+
+    #[test]
+    #[ignore = "needs parse_expr to be complete"]
+    fn test_parse_binary_expr() {
+        use crate::lexer::util::*;
+        let tokens = [gold_lit(5000), op("*"), op("-"), gold_lit(1)];
+
+        let (_, result) = parse_binary_expr.parse(TokenStream::new(&tokens)).unwrap();
+
+        let should_be = Expr::Binary {
+            left: Box::new(Expr::Integer(5000)),
+            operator: BinaryOp::Multiply,
+            right: Box::new(Expr::Unary {
+                operator: UnaryOp::Negate,
+                right: Box::new(Expr::Integer(1)),
+            }),
+        };
+
+        assert_eq!(result, should_be);
+    }
 }

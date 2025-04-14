@@ -159,3 +159,17 @@ impl TryFrom<crate::lexer::Token> for BinaryOp {
         }
     }
 }
+
+pub struct InvalidUnaryOp;
+impl TryFrom<crate::lexer::Token> for UnaryOp {
+    type Error = InvalidUnaryOp;
+    fn try_from(value: crate::lexer::Token) -> Result<Self, Self::Error> {
+        use crate::lexer::{Operator::*, Token};
+        match value {
+            Token::Operator(Minus) => Ok(Self::Negate),
+            Token::Operator(Not) => Ok(Self::Not),
+
+            _ => Err(InvalidUnaryOp),
+        }
+    }
+}
