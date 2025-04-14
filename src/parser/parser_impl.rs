@@ -436,6 +436,7 @@ fn parse_statement(input: TokenStream) -> IResult<TokenStream, Statement> {
         parse_block_statement,
         parse_coinflip_statement,
         parse_item.map(|i| i.into()),
+        parse_recall_statement,
     ))
     .parse(input)
 }
@@ -498,6 +499,16 @@ fn parse_coinflip_statement(input: TokenStream) -> IResult<TokenStream, Statemen
                 else_branch: ff15.map(|(_, else_branch)| Box::new(else_branch)),
             },
         )
+        .parse(input)
+}
+
+fn parse_recall_statement(input: TokenStream) -> IResult<TokenStream, Statement> {
+    (
+        keyword(Keyword::Recall),
+        opt(parse_expr),
+        symbol(Symbol::Semicolon),
+    )
+        .map(|(_, value, _)| Statement::Recall { value })
         .parse(input)
 }
 
