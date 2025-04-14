@@ -18,10 +18,13 @@ use nom::{
 type TokType = crate::lexer::tokens::Type;
 type AstType = crate::ast::Type;
 
+///////////////////////////////////////////////UTIL FUNCTIONS///////////////////////////////////////////////////
+// Utility function for creating a nom error
 fn create_error(input: TokenStream, kind: ErrorKind) -> nom::Err<nom::error::Error<TokenStream>> {
     Error(ParseError::from_error_kind(input, kind))
 }
 
+// Parses any token, only fails if input is empty
 fn any_token(input: TokenStream) -> IResult<TokenStream, Token> {
     let (rest, first) = take(1usize).parse(input)?;
 
@@ -32,6 +35,7 @@ fn any_token(input: TokenStream) -> IResult<TokenStream, Token> {
     Ok((rest, first_token.clone()))
 }
 
+// Parses identifier and returns its contained String
 fn identifier(input: TokenStream) -> IResult<TokenStream, String> {
     let (rest, first) = any_token.parse(input)?;
 
@@ -40,6 +44,8 @@ fn identifier(input: TokenStream) -> IResult<TokenStream, String> {
         _ => Err(create_error(input, ErrorKind::Tag)),
     }
 }
+
+// Parses the parameter keyword
 fn keyword(expected: Keyword) -> impl Fn(TokenStream) -> IResult<TokenStream, Keyword> {
     move |input: TokenStream| {
         let (rest, first) = any_token.parse(input)?;
@@ -51,6 +57,7 @@ fn keyword(expected: Keyword) -> impl Fn(TokenStream) -> IResult<TokenStream, Ke
     }
 }
 
+// Parses a gold literal and returns the i64 it contains
 fn gold_lit(input: TokenStream) -> IResult<TokenStream, i64> {
     let (rest, first) = any_token.parse(input)?;
 
@@ -64,6 +71,7 @@ fn gold_lit(input: TokenStream) -> IResult<TokenStream, i64> {
     }
 }
 
+// Parse a chat literal and return the String it contains
 fn chat_lit(input: TokenStream) -> IResult<TokenStream, String> {
     let (rest, first) = any_token.parse(input)?;
 
@@ -73,6 +81,7 @@ fn chat_lit(input: TokenStream) -> IResult<TokenStream, String> {
     }
 }
 
+// Parse the parameter type token
 fn typ(expected: TokType) -> impl Fn(TokenStream) -> IResult<TokenStream, TokType> {
     move |input: TokenStream| {
         let (rest, first) = any_token.parse(input)?;
@@ -84,6 +93,7 @@ fn typ(expected: TokType) -> impl Fn(TokenStream) -> IResult<TokenStream, TokTyp
     }
 }
 
+// Parse any type token
 fn typ_general(input: TokenStream) -> IResult<TokenStream, TokType> {
     let (rest, first) = any_token.parse(input)?;
 
@@ -93,6 +103,7 @@ fn typ_general(input: TokenStream) -> IResult<TokenStream, TokType> {
     }
 }
 
+// Parse the given operator token
 fn operator(expected: Operator) -> impl Fn(TokenStream) -> IResult<TokenStream, Operator> {
     move |input: TokenStream| {
         let (rest, first) = any_token.parse(input)?;
@@ -104,6 +115,7 @@ fn operator(expected: Operator) -> impl Fn(TokenStream) -> IResult<TokenStream, 
     }
 }
 
+// Parse any operator token
 fn operator_general(input: TokenStream) -> IResult<TokenStream, Operator> {
     let (rest, first) = any_token.parse(input)?;
 
@@ -113,6 +125,7 @@ fn operator_general(input: TokenStream) -> IResult<TokenStream, Operator> {
     }
 }
 
+// Parse the parameter symbol token
 fn symbol(expected: Symbol) -> impl Fn(TokenStream) -> IResult<TokenStream, Symbol> {
     move |input: TokenStream| {
         let (rest, first) = any_token.parse(input)?;
@@ -123,7 +136,9 @@ fn symbol(expected: Symbol) -> impl Fn(TokenStream) -> IResult<TokenStream, Symb
         }
     }
 }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Parse into a type AST
 fn parse_type(input: TokenStream) -> IResult<TokenStream, AstType> {
     alt((
         parse_simple_type,
@@ -134,6 +149,7 @@ fn parse_type(input: TokenStream) -> IResult<TokenStream, AstType> {
     .parse(input)
 }
 
+// Parses into type AST, which doesn't contain other types
 fn parse_simple_type(input: TokenStream) -> IResult<TokenStream, AstType> {
     let (rest, typ_token) = typ_general.parse(input)?;
 
@@ -148,6 +164,7 @@ fn parse_simple_type(input: TokenStream) -> IResult<TokenStream, AstType> {
     Ok((rest, ast_type))
 }
 
+// Parses a Shop type into AST
 fn parse_shop_type(input: TokenStream) -> IResult<TokenStream, AstType> {
     (
         typ(TokType::Shop),
@@ -161,6 +178,7 @@ fn parse_shop_type(input: TokenStream) -> IResult<TokenStream, AstType> {
         .parse(input)
 }
 
+// Parses a Duo type into AST
 fn parse_duo_type(input: TokenStream) -> IResult<TokenStream, AstType> {
     (
         typ(TokType::Duo),
@@ -174,6 +192,7 @@ fn parse_duo_type(input: TokenStream) -> IResult<TokenStream, AstType> {
         .parse(input)
 }
 
+// Parses an Inventory type into AST
 fn parse_inventory_type(input: TokenStream) -> IResult<TokenStream, AstType> {
     (
         typ(TokType::Inventory),
@@ -185,14 +204,17 @@ fn parse_inventory_type(input: TokenStream) -> IResult<TokenStream, AstType> {
         .parse(input)
 }
 
+// Parse into an Expr AST
 fn parse_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
     todo!();
 }
 
+// Parse into Expr::Identifier
 fn parse_identifier(input: TokenStream) -> IResult<TokenStream, Expr> {
     identifier.map(Expr::Identifier).parse(input)
 }
 
+// Parse into Expr literal type
 fn parse_lit(input: TokenStream) -> IResult<TokenStream, Expr> {
     alt((
         parse_status_lit,
@@ -203,6 +225,7 @@ fn parse_lit(input: TokenStream) -> IResult<TokenStream, Expr> {
     .parse(input)
 }
 
+// Parse into Expr::Unit
 fn parse_void_lit(input: TokenStream) -> IResult<TokenStream, Expr> {
     value(
         Expr::Unit,
@@ -211,6 +234,7 @@ fn parse_void_lit(input: TokenStream) -> IResult<TokenStream, Expr> {
     .parse(input)
 }
 
+// Parse into Expr::Boolean
 fn parse_status_lit(input: TokenStream) -> IResult<TokenStream, Expr> {
     alt((
         value(Expr::Boolean(true), keyword(Keyword::True)),
@@ -219,14 +243,17 @@ fn parse_status_lit(input: TokenStream) -> IResult<TokenStream, Expr> {
     .parse(input)
 }
 
+// Parse into Expr::String
 fn parse_chat_lit(input: TokenStream) -> IResult<TokenStream, Expr> {
     chat_lit.map(Expr::String).parse(input)
 }
 
+// Parse into Expr::Integer
 fn parse_gold_lit(input: TokenStream) -> IResult<TokenStream, Expr> {
     gold_lit.map(Expr::Integer).parse(input)
 }
 
+// Parse into Expr::Group
 fn parse_group_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
     (
         symbol(Symbol::ParenOpen),
@@ -237,6 +264,7 @@ fn parse_group_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
         .parse(input)
 }
 
+// Parse into Expr::Binary
 fn parse_binary_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
     (parse_expr, parse_binary_op, parse_expr)
         .map(|(expr1, op, expr2)| Expr::Binary {
@@ -247,10 +275,12 @@ fn parse_binary_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
         .parse(input)
 }
 
+// Parse into BinaryOp
 fn parse_binary_op(input: TokenStream) -> IResult<TokenStream, BinaryOp> {
     any_token.map_res(BinaryOp::try_from).parse(input)
 }
 
+// Parse into Expr::Inventory
 fn parse_inventory_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
     (
         symbol(Symbol::SquareOpen),
@@ -261,6 +291,7 @@ fn parse_inventory_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
         .parse(input)
 }
 
+// Parse the items that go in Expr::Inventory
 fn parse_inventory_items(input: TokenStream) -> IResult<TokenStream, Vec<Expr>> {
     let (rest, first) = parse_expr.parse(input)?;
 
