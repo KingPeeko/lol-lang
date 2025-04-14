@@ -437,6 +437,7 @@ fn parse_statement(input: TokenStream) -> IResult<TokenStream, Statement> {
         parse_coinflip_statement,
         parse_item.map(|i| i.into()),
         parse_recall_statement,
+        parse_assignment_statement,
     ))
     .parse(input)
 }
@@ -509,6 +510,17 @@ fn parse_recall_statement(input: TokenStream) -> IResult<TokenStream, Statement>
         symbol(Symbol::Semicolon),
     )
         .map(|(_, value, _)| Statement::Recall { value })
+        .parse(input)
+}
+
+fn parse_assignment_statement(input: TokenStream) -> IResult<TokenStream, Statement> {
+    (
+        identifier,
+        operator(Operator::Equals),
+        parse_expr,
+        symbol(Symbol::Semicolon),
+    )
+        .map(|(name, _, value, _)| Statement::Assignment { name, value })
         .parse(input)
 }
 
