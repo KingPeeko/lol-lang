@@ -484,6 +484,9 @@ fn parse_gonext_statement(input: TokenStream) -> IResult<TokenStream, Statement>
         .parse(input)
 }
 
+/// Parse coinflip (if-else) statement
+///
+/// if (<expr>) <then-block> (ff15 <else-block>)?
 fn parse_coinflip_statement(input: TokenStream) -> IResult<TokenStream, Statement> {
     (
         keyword(Keyword::Coinflip),
@@ -503,6 +506,9 @@ fn parse_coinflip_statement(input: TokenStream) -> IResult<TokenStream, Statemen
         .parse(input)
 }
 
+/// Parse recall (return) statement
+///
+/// recall <optional value>;
 fn parse_recall_statement(input: TokenStream) -> IResult<TokenStream, Statement> {
     (
         keyword(Keyword::Recall),
@@ -513,6 +519,9 @@ fn parse_recall_statement(input: TokenStream) -> IResult<TokenStream, Statement>
         .parse(input)
 }
 
+/// Parse item (variable) assignment
+///
+/// <name> = <value>;
 fn parse_assignment_statement(input: TokenStream) -> IResult<TokenStream, Statement> {
     (
         identifier,
