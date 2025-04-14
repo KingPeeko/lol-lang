@@ -252,7 +252,13 @@ fn parse_binary_op(input: TokenStream) -> IResult<TokenStream, BinaryOp> {
 }
 
 fn parse_inventory_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
-    todo!();
+    (
+        symbol(Symbol::SquareOpen),
+        parse_inventory_items,
+        symbol(Symbol::SquareClose),
+    )
+        .map(|(_, items, _)| Expr::Inventory(items))
+        .parse(input)
 }
 
 fn parse_inventory_items(input: TokenStream) -> IResult<TokenStream, Vec<Expr>> {
@@ -396,6 +402,32 @@ mod test {
         assert_eq!(res[1], Expr::String("hello world".to_string()));
         assert_eq!(res[2], Expr::Boolean(true));
         assert_eq!(res[3], Expr::Unit);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_parse_inventory_expr() {
+        use crate::lexer::util::*;
+        let tokens = [
+            sym("["),
+            chat_lit("hello world"),
+            sym(","),
+            keyword("true"),
+            sym(","),
+            ident("what_up"),
+        ];
+
+        let should_be = Expr::Inventory(
+            vec![
+                Expr::String("hello world".to_string()),
+                Expr::Boolean(true),
+                Expr::Identifier("what_up".to_string()),
+            ]
+        );
+
+        let (_, inv) = parse_inventory_expr.parse(TokenStream::new(&tokens)).unwrap();
+
+        assert_eq!(inv, should_be);
     }
 
     //
