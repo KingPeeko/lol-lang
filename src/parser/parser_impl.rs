@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::ast::*;
 use crate::lexer::tokens::*;
 
@@ -417,6 +419,15 @@ impl<'a> Parser<'a> {
         expect!(self.stream, Token::Symbol(Symbol::SquareClose))?;
 
         return Ok(Expr::Inventory(items));
+    }
+
+    fn parse_duo_expr(&mut self) -> Result<Expr, Err> {
+        expect!(self.stream, Token::Symbol(Symbol::ParenOpen))?;
+        let expr1 = self.parse_expr()?;
+        expect!(self.stream, Token::Symbol(Symbol::Comma))?;
+        let expr2 = self.parse_expr()?;
+
+        Ok(Expr::Duo(Box::new(expr1), Box::new(expr2)))
     }
 }
 
