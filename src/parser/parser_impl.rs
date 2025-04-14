@@ -463,7 +463,7 @@ fn parse_gonext_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
     (
         keyword(Keyword::GoNext),
         symbol(Symbol::ParenOpen),
-        parse_binary_expr,
+        parse_expr,
         symbol(Symbol::ParenClose),
         parse_block_stmt,
     )
@@ -491,7 +491,7 @@ fn parse_nexus(input: TokenStream) -> IResult<TokenStream, Decl> {
     )
         .parse(input)?;
 
-    return Ok((rest, Decl::Nexus { body: statements }));
+    Ok((rest, Decl::Nexus { body: statements }))
 }
 
 fn parse_ability(input: TokenStream) -> IResult<TokenStream, Decl> {
@@ -519,7 +519,7 @@ fn parse_ability(input: TokenStream) -> IResult<TokenStream, Decl> {
 }
 
 fn parse_param(input: TokenStream) -> IResult<TokenStream, Param> {
-    (identifier, symbol(Symbol::Comma), parse_type)
+    (identifier, symbol(Symbol::Colon), parse_type)
         .map(|(name, _, ty)| Param { name, ty })
         .parse(input)
 }
@@ -528,9 +528,9 @@ fn parse_item(input: TokenStream) -> IResult<TokenStream, Decl> {
     (
         keyword(Keyword::Buy),
         identifier,
-        symbol(Symbol::Comma),
+        symbol(Symbol::Colon),
         parse_type,
-        operator(Operator::Equals),
+        operator(Operator::Assignment),
         parse_expr,
         symbol(Symbol::Semicolon),
     )
@@ -542,77 +542,6 @@ fn parse_item(input: TokenStream) -> IResult<TokenStream, Decl> {
         .parse(input)
 }
 
-//     fn parse_decl(&mut self) -> Result<Decl, Err> {
-//         todo!();
-//         let kw = expect_unwrap!(self.stream, Token::Keyword)?;
-//
-//         match kw {
-//             Keyword::Ability => self.parse_ability(),
-//             Keyword::Buy => self.parse_item_decl(),
-//             Keyword::Nexus => self.parse_nexus(),
-//
-//             _ => Err(ParseError::UnexpectedToken),
-//         }
-//     }
-//
-//     fn parse_nexus(&mut self) -> Result<Decl, Err> {
-//         todo!();
-//     }
-//
-//     fn parse_ability(&mut self) -> Result<Decl, Err> {
-//         todo!();
-//     }
-//
-//     fn parse_item_decl(&mut self) -> Result<Decl, Err> {
-//         todo!();
-//         // Item decl needs tokens 'buy', 'identifier', 'colon', 'type', 'assignment', 'expression', 'semicolon'
-//         expect!(self.stream, Token::Keyword(Keyword::Buy))?;
-//
-//         let variable_name = expect_unwrap!(self.stream, Token::Identifier)?;
-//
-//         expect!(self.stream, Token::Symbol(Symbol::Colon))?;
-//
-//         let ty = self.parse_type()?;
-//
-//         expect!(self.stream, Token::Operator(Operator::Assignment))?;
-//
-//         let expr = self.parse_expr()?;
-//
-//         expect!(self.stream, Token::Symbol(Symbol::Semicolon))?;
-//
-//         Ok(Decl::Item {
-//             name: variable_name.to_string(),
-//             ty,
-//             initializer: expr,
-//         })
-//     }
-//
-//     // Parses the Inventory expression, aka. a list. Returns an Ok with the Inventory if syntax is correct.
-//     fn parse_inventory_expr(&mut self) -> Result<Expr, Err> {
-//         expect!(self.stream, Token::Symbol(Symbol::SquareOpen))?;
-//
-//         let mut items = Vec::new();
-//
-//         if let _ = peek_validate!(self.stream, Token::Symbol(Symbol::SquareClose)) {
-//             self.stream.move_forward(1);
-//             return Ok(Expr::Inventory(items));
-//         }
-//
-//         loop {
-//             items.push(self.parse_expr()?);
-//             if let _ = peek_validate!(self.stream, Token::Symbol(Symbol::Comma)) {
-//                 self.stream.move_forward(1);
-//             } else {
-//                 break;
-//             }
-//         }
-//
-//         expect!(self.stream, Token::Symbol(Symbol::SquareClose))?;
-//
-//         return Ok(Expr::Inventory(items));
-//     }
-// }
-//
 #[cfg(test)]
 mod test {
     use super::*;
