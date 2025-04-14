@@ -1,7 +1,9 @@
 use super::token_stream::TokenStream;
 use crate::ast::*;
 use crate::lexer::tokens::{Keyword, Literal, Operator, Symbol, Token};
+use crate::lexer::util::sym;
 
+use nom::multi::many0;
 use nom::Input;
 use nom::{
     branch::alt,
@@ -308,9 +310,25 @@ fn parse_inventory_items(input: TokenStream) -> IResult<TokenStream, Vec<Expr>> 
     .parse(rest)
 }
 
-
 // STATEMENT PRASING SECTION
 
+// Parse statements
+fn parse_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
+    alt((parse_ping_stmt, parse_gonext_stmt)).parse(input)
+}
+
+// Parse into Stmt::Block
+fn parse_block_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
+    (
+        symbol(Symbol::CurlyOpen),
+        many0(parse_stmt),
+        symbol(Symbol::CurlyClose),
+    )
+        .map(|(_, statements, _)| Stmt::Block(statements))
+        .parse(input)
+}
+
+// Parse into Stmt::Ping
 fn parse_ping_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
     (
         keyword(Keyword::Ping),
@@ -319,8 +337,26 @@ fn parse_ping_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
         symbol(Symbol::ParenClose),
         symbol(Symbol::Semicolon),
     )
-    .map(|(_, _, printed_value, _, _)| Stmt::Ping { value: (printed_value) })
-    .parse(input)
+        .map(|(_, _, printed_value, _, _)| Stmt::Ping {
+            value: (printed_value),
+        })
+        .parse(input)
+}
+
+// Parse into Stmt::GoNext
+fn parse_gonext_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
+    (
+        keyword(Keyword::GoNext),
+        symbol(Symbol::ParenOpen),
+        parse_binary_expr,
+        symbol(Symbol::ParenClose),
+        parse_block_stmt,
+    )
+        .map(|(_, _, condition, _, block)| Stmt::GoNext {
+            condition: (condition),
+            body: Box::new(block),
+        })
+        .parse(input)
 }
 
 //     fn parse_decl(&mut self) -> Result<Decl, Err> {
@@ -463,15 +499,15 @@ mod test {
             ident("what_up"),
         ];
 
-        let should_be = Expr::Inventory(
-            vec![
-                Expr::String("hello world".to_string()),
-                Expr::Boolean(true),
-                Expr::Identifier("what_up".to_string()),
-            ]
-        );
+        let should_be = Expr::Inventory(vec![
+            Expr::String("hello world".to_string()),
+            Expr::Boolean(true),
+            Expr::Identifier("what_up".to_string()),
+        ]);
 
-        let (_, inv) = parse_inventory_expr.parse(TokenStream::new(&tokens)).unwrap();
+        let (_, inv) = parse_inventory_expr
+            .parse(TokenStream::new(&tokens))
+            .unwrap();
 
         assert_eq!(inv, should_be);
     }
