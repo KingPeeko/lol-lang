@@ -98,51 +98,62 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // pub fn parse(mut self) -> Result<Program, Err> {
-    //     let mut declarations = Vec::<Decl>::new();
-    //
-    //     while !self.stream.is_eof() {
-    //         declarations.push(self.parse_decl()?);
-    //     }
-    //
-    //     Ok(Program{ declarations })
-    // }
-    //
-    // fn parse_decl(&mut self) -> Result<Decl, Err> {
-    //     let kw = expect_unwrap!(self.stream, Token::Keyword)?;
-    //
-    //     match kw {
-    //         Keyword::Ability => self.parse_ability(),
-    //         Keyword::Buy => self.parse_item_decl(),
-    //         Keyword::Nexus => self.parse_nexus(),
-    //
-    //         _ => Err(ParseError::UnexpectedToken),
-    //     }
-    // }
-    //
-    // fn parse_item_decl(&mut self) -> Result<Decl, Err> {
-    //     // Item decl needs tokens 'buy', 'identifier', 'colon', 'type', 'assignment', 'expression', 'semicolon'
-    //     expect!(self.stream, Token::Keyword(Keyword::Buy))?;
-    //
-    //     let variable_name = expect_unwrap!(self.stream, Token::Identifier)?;
-    //
-    //     expect!(self.stream, Token::Symbol(Symbol::Colon))?;
-    //
-    //     let ty = self.parse_type()?;
-    //
-    //     expect!(self.stream, Token::Operator(Operator::Assignment))?;
-    //
-    //     let expr = self.parse_expr()?;
-    //
-    //     expect!(self.stream, Token::Symbol(Symbol::Semicolon))?;
-    //
-    //     Ok(Decl::Item { 
-    //         name: variable_name.to_string(), 
-    //         ty,
-    //         initializer: expr, 
-    //     })
-    // }
-    //
+    pub fn parse(mut self) -> Result<Program, Err> {
+        todo!();
+        let mut declarations = Vec::<Decl>::new();
+
+        while !self.stream.is_eof() {
+            declarations.push(self.parse_decl()?);
+        }
+
+        Ok(Program{ declarations })
+    }
+
+    fn parse_decl(&mut self) -> Result<Decl, Err> {
+        todo!();
+        let kw = expect_unwrap!(self.stream, Token::Keyword)?;
+
+        match kw {
+            Keyword::Ability => self.parse_ability(),
+            Keyword::Buy => self.parse_item_decl(),
+            Keyword::Nexus => self.parse_nexus(),
+
+            _ => Err(ParseError::UnexpectedToken),
+        }
+    }
+
+    fn parse_nexus(&mut self) -> Result<Decl, Err> {
+        todo!();
+    }
+
+    fn parse_ability(&mut self) -> Result<Decl, Err> {
+        todo!();
+    }
+
+    fn parse_item_decl(&mut self) -> Result<Decl, Err> {
+        todo!();
+        // Item decl needs tokens 'buy', 'identifier', 'colon', 'type', 'assignment', 'expression', 'semicolon'
+        expect!(self.stream, Token::Keyword(Keyword::Buy))?;
+
+        let variable_name = expect_unwrap!(self.stream, Token::Identifier)?;
+
+        expect!(self.stream, Token::Symbol(Symbol::Colon))?;
+
+        let ty = self.parse_type()?;
+
+        expect!(self.stream, Token::Operator(Operator::Assignment))?;
+
+        let expr = self.parse_expr()?;
+
+        expect!(self.stream, Token::Symbol(Symbol::Semicolon))?;
+
+        Ok(Decl::Item { 
+            name: variable_name.to_string(), 
+            ty,
+            initializer: expr, 
+        })
+    }
+
 
 
 
@@ -205,14 +216,21 @@ impl<'a> Parser<'a> {
         Ok(crate::ast::Type::Duo(Box::new(ty1), Box::new(ty2)))
     }
 
-    // fn parse_expr(&mut self) -> Result<Expr, Err> {
-    //     let token = self.stream.peek()?;
-    //
-    //     match token {
-    //         Token::Literal(_) => self.parse_lit(),
-    //         Token::Identifier(s) => Ok(Expr::Identifier(s.to_string())),
-    //     }
-    // }
+    fn parse_expr(&mut self) -> Result<Expr, Err> {
+        todo!();
+        // let token = self.stream.peek()?;
+        //
+        // match token {
+        //     Token::Literal(_) => self.parse_lit(),
+        //     Token::Identifier(s) => self.parse_identifier(),
+        // }
+    }
+
+
+    fn parse_identifier(&mut self) -> Result<Expr, Err> {
+        let ident_name = expect_unwrap!(self.stream, Token::Identifier)?;
+        Ok(Expr::Identifier(ident_name.to_string()))
+    }
 
     fn parse_lit(&mut self) -> Result<Expr, Err> {
         self.parse_status_lit()
@@ -262,11 +280,6 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_gold_lit(&mut self) -> Result<Expr, Err> {
-        self.parse_positive_gold_lit()
-            .or_else(|_| self.parse_negative_gold_lit())
-    }
-
-    fn parse_positive_gold_lit(&mut self) -> Result<Expr, Err> {
         let lit = peek_unwrap!(self.stream, Token::Literal)?;
 
         if let Literal::GoldLit(num_str) = lit {
@@ -279,39 +292,100 @@ impl<'a> Parser<'a> {
         Err(ParseError::UnexpectedToken)
     }
 
-    fn parse_negative_gold_lit(&mut self) -> Result<Expr, Err> {
-        // Check that next two tokens are a '-' followed by a literal
-        let _ = peek_validate!(self.stream, Token::Operator(Operator::Minus))?;
-        let gold_lit = peek_unwrap_ahead!(self.stream, Token::Literal, 1)?;
+    fn parse_grouped_expr(&mut self) -> Result<Expr, Err> {
+        todo!();
+        // expect!(self.stream, Token::Symbol(Symbol::ParenOpen))?;
+        //
+        // let expr = self.parse_expr()?;
+        //
+        // expect!(self.stream, Token::Symbol(Symbol::ParenClose))?;
+        //
+        // Ok(expr)
+    }
 
-        if let Literal::GoldLit(num_str) = gold_lit {
-            let num = -(num_str.parse::<i64>().map_err(|_| ParseError::ParseLitError)?);
-            // Now also advance the stream twice, as we parsed two tokens
-            self.stream.move_forward(2);
+    fn parse_binary_expr(&mut self) -> Result<Expr, Err> {
+        todo!(); // needs parse_expr
+        // In case completing the parse fails, save current position to return to later
+        self.stream.save_pos();
+        let expr1_res = self.parse_expr();
 
-            return Ok(Expr::Integer(num))
+        let token_res = self.stream.advance();
+
+        let expr2_res = self.parse_expr();
+
+        let combined_res = {
+            expr1_res.clone()
+                .and(expr2_res.clone())
+                .and(token_res.clone())
+        };
+
+        if let Err(e) = combined_res {
+            // Parsing failed, load previous position before parsing tokens
+            self.stream.load_pos();
+            return Err(e)
         }
 
-        Err(ParseError::UnexpectedToken)
+        // Just checked that none are Err type
+        let expr1 = expr1_res.unwrap();
+        let expr2 = expr2_res.unwrap();
+        let token = token_res.unwrap();
+
+        match token {
+            Token::Symbol(sym) => {
+                match sym {
+                    Symbol::AngleOpen => {
+                        Ok(
+                            Expr::Binary { left: Box::new(expr1), operator: BinaryOp::Less, right: Box::new(expr2) }
+                        )
+                    }
+
+                    Symbol::AngleClose => {
+                        Ok(
+                            Expr::Binary { left: Box::new(expr1), operator: BinaryOp::Greater, right: Box::new(expr2) }
+                        )
+                    }
+
+                    _ => {
+                        self.stream.load_pos();
+                        Err(ParseError::UnexpectedToken)
+                    }
+                }
+            }
+
+            Token::Operator(op) => {
+                Self::binary_op_token_to_expr(expr1, op, expr2)
+            }
+
+            _ => {
+                self.stream.load_pos();
+                Err(ParseError::UnexpectedToken)
+            }
+
+        }
     }
 
-    // fn parse_grouped_expr(&mut self) -> Result<Expr, Err> {
-    //     expect!(self.stream, Token::Symbol(Symbol::ParenOpen))?;
-    //
-    //     let expr = self.parse_expr()?;
-    //
-    //     expect!(self.stream, Token::Symbol(Symbol::ParenClose))?;
-    //
-    //     Ok(expr)
-    // }
+    fn binary_op_token_to_expr(left_expr: Expr, op_token: &Operator, right_expr: Expr) -> Result<Expr, Err> {
+        let binary_op = match op_token {
+            Operator::Plus => BinaryOp::Add,
+            Operator::Minus => BinaryOp::Subtract,
+            Operator::Mult => BinaryOp::Multiply,
+            Operator::Divide => BinaryOp::Divide,
+            Operator::Modulo => BinaryOp::Modulo,
+            Operator::Equals => BinaryOp::Equal,
+            Operator::NotEquals => BinaryOp::NotEqual,
+            Operator::LessEquals => BinaryOp::LessEqual,
+            Operator::GreaterEquals => BinaryOp::GreaterEqual,
+            Operator::And => BinaryOp::And,
+            Operator::Or => BinaryOp::Or,
+            
+            _ => return Err(ParseError::UnexpectedToken),
+        };
 
-    // fn parse_binary_expr(&mut self) -> Result<Expr, Err> {
-    //
-    // }
-
-    fn parse_expr(&mut self) -> Result<crate::ast::Expr, Err> {
-        todo!();
+        Ok(
+            Expr::Binary { left: Box::new(left_expr), operator: binary_op, right: Box::new(right_expr) }
+        )
     }
+
 
     // Parses the Inventory expression, aka. a list. Returns an Ok with the Inventory if syntax is correct.
     fn parse_inventory_expr(&mut self) -> Result<Expr, Err> {
@@ -361,7 +435,7 @@ mod test {
 
     #[test]
     fn test_parse_lit() {
-        let tokens = [op("-"), gold_lit(2938), chat_lit("hello world"), keyword("true"), sym("("), sym(")")];
+        let tokens = [gold_lit(2938), chat_lit("hello world"), keyword("true"), sym("("), sym(")")];
 
         let mut parser = Parser::new(&tokens);
 
@@ -372,11 +446,24 @@ mod test {
         let res4 = parser.parse_lit();
         let res5 = parser.parse_lit();
 
-        assert_eq!(res1.unwrap(), Expr::Integer(-2938));
+        assert_eq!(res1.unwrap(), Expr::Integer(2938));
         assert_eq!(res2.unwrap(), Expr::String("hello world".to_string()));
         assert_eq!(res3.unwrap(), Expr::Boolean(true));
         assert_eq!(res4.unwrap(), Expr::Unit);
         assert!(matches!(res5, Err(ParseError::Eof)));
+    }
+
+    #[test]
+    fn test_parse_binary_expr() {
+        todo!(); // Needs parse_expr first
+        let tokens = [gold_lit(5000), op("*"), op("-"), gold_lit(1)];
+
+        let mut parser = Parser::new(&tokens);
+        let result = parser.parse_binary_expr().unwrap();
+
+        let should_be = Expr::Binary { left: Box::new(Expr::Integer(5000)), operator: BinaryOp::Multiply, right: Box::new(Expr::Unary { operator: UnaryOp::Negate, right: Box::new(Expr::Integer(1)) }) };
+
+        assert_eq!(result, should_be);
     }
 
 }
