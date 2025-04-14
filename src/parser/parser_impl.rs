@@ -1,9 +1,8 @@
-use crate::lexer::tokens::*;
 use crate::ast::*;
+use crate::lexer::tokens::*;
 
-use super::token_stream::TokenStream;
 use super::error::ParseError;
-
+use super::token_stream::TokenStream;
 
 pub struct Parser<'a> {
     stream: TokenStream<'a>,
@@ -12,38 +11,32 @@ pub struct Parser<'a> {
 // Expect the given $enum from $stream
 macro_rules! expect {
     ($stream:expr, $enum:pat) => {
-        $stream.expect( |token| {
-            matches!(token, $enum)
-        })
-    }
+        $stream.expect(|token| matches!(token, $enum))
+    };
 }
 
 // Same as expect, but don't advance stream.
 macro_rules! peek_validate {
-    ($stream:expr, $enum:pat) => {
-        {
-            let token = $stream.peek();
-            match token {
+    ($stream:expr, $enum:pat) => {{
+        let token = $stream.peek();
+        match token {
             Ok($enum) => Ok(token),
             Ok(_) => Err(ParseError::UnexpectedToken),
             Err(e) => Err(e),
-            }
         }
-    }
+    }};
 }
 
 // Same as above, but peek n tokens ahead
 macro_rules! peek_validate_ahead {
-    ($stream:expr, $enum:pat, $n:expr) => {
-        {
+    ($stream:expr, $enum:pat, $n:expr) => {{
         let token = $stream.peek_ahead($n);
         match token {
             Ok($enum) => Ok(token),
             Ok(_) => Err(ParseError::UnexpectedToken),
             Err(e) => Err(e),
         }
-        }
-    }
+    }};
 }
 
 // Expect $pattern from stream and unwrap its inner contents, otherwise return an Err type
@@ -56,7 +49,7 @@ macro_rules! expect_unwrap {
             }
 
             Ok(_) => Err(ParseError::UnexpectedToken),
-            
+
             Err(e) => Err(e),
         }
     };
@@ -72,7 +65,7 @@ macro_rules! peek_unwrap {
 
             Err(e) => Err(e),
         }
-    }
+    };
 }
 
 // Same as above, but peek n ahead
@@ -85,13 +78,11 @@ macro_rules! peek_unwrap_ahead {
 
             Err(e) => Err(e),
         }
-    }
+    };
 }
 
 type Err = ParseError;
 impl<'a> Parser<'a> {
-
-
     pub fn new(tokens: &'a [Token]) -> Self {
         Self {
             stream: TokenStream::new(tokens),
@@ -106,7 +97,7 @@ impl<'a> Parser<'a> {
             declarations.push(self.parse_decl()?);
         }
 
-        Ok(Program{ declarations })
+        Ok(Program { declarations })
     }
 
     fn parse_decl(&mut self) -> Result<Decl, Err> {
@@ -147,15 +138,12 @@ impl<'a> Parser<'a> {
 
         expect!(self.stream, Token::Symbol(Symbol::Semicolon))?;
 
-        Ok(Decl::Item { 
-            name: variable_name.to_string(), 
+        Ok(Decl::Item {
+            name: variable_name.to_string(),
             ty,
-            initializer: expr, 
+            initializer: expr,
         })
     }
-
-
-
 
     // Type is: 'type', and possibly 'AngleOpen', 'type', etc.
     fn parse_type(&mut self) -> Result<crate::ast::Type, Err> {
@@ -226,7 +214,6 @@ impl<'a> Parser<'a> {
         // }
     }
 
-
     fn parse_identifier(&mut self) -> Result<Expr, Err> {
         let ident_name = expect_unwrap!(self.stream, Token::Identifier)?;
         Ok(Expr::Identifier(ident_name.to_string()))
@@ -273,7 +260,7 @@ impl<'a> Parser<'a> {
 
         if let Literal::ChatLit(string) = lit {
             self.stream.move_forward(1);
-            return Ok(Expr::String(string.to_string()))
+            return Ok(Expr::String(string.to_string()));
         }
 
         Err(ParseError::UnexpectedToken)
@@ -283,10 +270,12 @@ impl<'a> Parser<'a> {
         let lit = peek_unwrap!(self.stream, Token::Literal)?;
 
         if let Literal::GoldLit(num_str) = lit {
-            let num = num_str.parse::<i64>().map_err(|_| ParseError::ParseLitError)?;
+            let num = num_str
+                .parse::<i64>()
+                .map_err(|_| ParseError::ParseLitError)?;
             // Advance stream, as we parse a token
             self.stream.move_forward(1);
-            return Ok(Expr::Integer(num))
+            return Ok(Expr::Integer(num));
         }
 
         Err(ParseError::UnexpectedToken)
@@ -305,7 +294,7 @@ impl<'a> Parser<'a> {
 
     fn parse_binary_expr(&mut self) -> Result<Expr, Err> {
         todo!(); // needs parse_expr
-        // In case completing the parse fails, save current position to return to later
+                 // In case completing the parse fails, save current position to return to later
         self.stream.save_pos();
         let expr1_res = self.parse_expr();
 
@@ -314,7 +303,8 @@ impl<'a> Parser<'a> {
         let expr2_res = self.parse_expr();
 
         let combined_res = {
-            expr1_res.clone()
+            expr1_res
+                .clone()
                 .and(expr2_res.clone())
                 .and(token_res.clone())
         };
@@ -322,7 +312,7 @@ impl<'a> Parser<'a> {
         if let Err(e) = combined_res {
             // Parsing failed, load previous position before parsing tokens
             self.stream.load_pos();
-            return Err(e)
+            return Err(e);
         }
 
         // Just checked that none are Err type
@@ -331,40 +321,39 @@ impl<'a> Parser<'a> {
         let token = token_res.unwrap();
 
         match token {
-            Token::Symbol(sym) => {
-                match sym {
-                    Symbol::AngleOpen => {
-                        Ok(
-                            Expr::Binary { left: Box::new(expr1), operator: BinaryOp::Less, right: Box::new(expr2) }
-                        )
-                    }
+            Token::Symbol(sym) => match sym {
+                Symbol::AngleOpen => Ok(Expr::Binary {
+                    left: Box::new(expr1),
+                    operator: BinaryOp::Less,
+                    right: Box::new(expr2),
+                }),
 
-                    Symbol::AngleClose => {
-                        Ok(
-                            Expr::Binary { left: Box::new(expr1), operator: BinaryOp::Greater, right: Box::new(expr2) }
-                        )
-                    }
+                Symbol::AngleClose => Ok(Expr::Binary {
+                    left: Box::new(expr1),
+                    operator: BinaryOp::Greater,
+                    right: Box::new(expr2),
+                }),
 
-                    _ => {
-                        self.stream.load_pos();
-                        Err(ParseError::UnexpectedToken)
-                    }
+                _ => {
+                    self.stream.load_pos();
+                    Err(ParseError::UnexpectedToken)
                 }
-            }
+            },
 
-            Token::Operator(op) => {
-                Self::binary_op_token_to_expr(expr1, op, expr2)
-            }
+            Token::Operator(op) => Self::binary_op_token_to_expr(expr1, op, expr2),
 
             _ => {
                 self.stream.load_pos();
                 Err(ParseError::UnexpectedToken)
             }
-
         }
     }
 
-    fn binary_op_token_to_expr(left_expr: Expr, op_token: &Operator, right_expr: Expr) -> Result<Expr, Err> {
+    fn binary_op_token_to_expr(
+        left_expr: Expr,
+        op_token: &Operator,
+        right_expr: Expr,
+    ) -> Result<Expr, Err> {
         let binary_op = match op_token {
             Operator::Plus => BinaryOp::Add,
             Operator::Minus => BinaryOp::Subtract,
@@ -377,15 +366,16 @@ impl<'a> Parser<'a> {
             Operator::GreaterEquals => BinaryOp::GreaterEqual,
             Operator::And => BinaryOp::And,
             Operator::Or => BinaryOp::Or,
-            
+
             _ => return Err(ParseError::UnexpectedToken),
         };
 
-        Ok(
-            Expr::Binary { left: Box::new(left_expr), operator: binary_op, right: Box::new(right_expr) }
-        )
+        Ok(Expr::Binary {
+            left: Box::new(left_expr),
+            operator: binary_op,
+            right: Box::new(right_expr),
+        })
     }
-
 
     // Parses the Inventory expression, aka. a list. Returns an Ok with the Inventory if syntax is correct.
     fn parse_inventory_expr(&mut self) -> Result<Expr, Err> {
@@ -413,7 +403,6 @@ impl<'a> Parser<'a> {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -423,22 +412,42 @@ mod test {
     fn test_parse_type() {
         use crate::ast::*;
         let tokens = [
-            ty("Shop"), sym("<"), ty("Duo"), sym("<"), ty("Chat"), sym(","), ty("Gold"),
-            sym(">"), sym(","), ty("Inventory"), sym("<"), ty("Gold"), sym(">"), sym(">")
+            ty("Shop"),
+            sym("<"),
+            ty("Duo"),
+            sym("<"),
+            ty("Chat"),
+            sym(","),
+            ty("Gold"),
+            sym(">"),
+            sym(","),
+            ty("Inventory"),
+            sym("<"),
+            ty("Gold"),
+            sym(">"),
+            sym(">"),
         ];
 
         let mut parser = Parser::new(&tokens);
 
-        let should_be = Type::Shop(Box::new(Type::Duo(Box::new(Type::Chat), Box::new(Type::Gold))), Box::new(Type::Inventory(Box::new(Type::Gold))));
-        assert_eq!(parser.parse_type().unwrap(), should_be );
+        let should_be = Type::Shop(
+            Box::new(Type::Duo(Box::new(Type::Chat), Box::new(Type::Gold))),
+            Box::new(Type::Inventory(Box::new(Type::Gold))),
+        );
+        assert_eq!(parser.parse_type().unwrap(), should_be);
     }
 
     #[test]
     fn test_parse_lit() {
-        let tokens = [gold_lit(2938), chat_lit("hello world"), keyword("true"), sym("("), sym(")")];
+        let tokens = [
+            gold_lit(2938),
+            chat_lit("hello world"),
+            keyword("true"),
+            sym("("),
+            sym(")"),
+        ];
 
         let mut parser = Parser::new(&tokens);
-
 
         let res1 = parser.parse_lit();
         let res2 = parser.parse_lit();
@@ -461,9 +470,15 @@ mod test {
         let mut parser = Parser::new(&tokens);
         let result = parser.parse_binary_expr().unwrap();
 
-        let should_be = Expr::Binary { left: Box::new(Expr::Integer(5000)), operator: BinaryOp::Multiply, right: Box::new(Expr::Unary { operator: UnaryOp::Negate, right: Box::new(Expr::Integer(1)) }) };
+        let should_be = Expr::Binary {
+            left: Box::new(Expr::Integer(5000)),
+            operator: BinaryOp::Multiply,
+            right: Box::new(Expr::Unary {
+                operator: UnaryOp::Negate,
+                right: Box::new(Expr::Integer(1)),
+            }),
+        };
 
         assert_eq!(result, should_be);
     }
-
 }

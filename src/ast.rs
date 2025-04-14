@@ -34,26 +34,26 @@ pub enum Expr {
 // Binary operators.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOp {
-    Add,            // +
-    Subtract,       // -
-    Multiply,       // *
-    Divide,         // /
-    Modulo,         // %
-    Equal,          // ==
-    NotEqual,       // !=
-    Less,           // <
-    LessEqual,      // <=
-    Greater,        // >
-    GreaterEqual,   // >=
-    And,            // &&
-    Or,             // ||
+    Add,          // +
+    Subtract,     // -
+    Multiply,     // *
+    Divide,       // /
+    Modulo,       // %
+    Equal,        // ==
+    NotEqual,     // !=
+    Less,         // <
+    LessEqual,    // <=
+    Greater,      // >
+    GreaterEqual, // >=
+    And,          // &&
+    Or,           // ||
 }
 
 // Unary operators.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOp {
-    Negate,         // -
-    Not,            // !
+    Negate, // -
+    Not,    // !
 }
 
 // All types of the language. Derives PartialEq so they can be compared.
@@ -67,8 +67,6 @@ pub enum Type {
     Inventory(Box<Type>),       // list
     Shop(Box<Type>, Box<Type>), // map
 }
-
-
 
 // Statements of the language.
 #[derive(Debug, Clone, PartialEq)]
@@ -105,7 +103,7 @@ pub enum Stmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Param {
     pub name: String,
-    pub ty: Type,         // Parameter type, cannot be named type because of syntax.
+    pub ty: Type, // Parameter type, cannot be named type because of syntax.
 }
 
 // Declarations of the language.

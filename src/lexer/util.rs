@@ -68,7 +68,6 @@ impl FromStr for Symbol {
             "->" => Ok(Arrow),
 
             _ => Err(ParseSymbolError),
-        
         }
     }
 }

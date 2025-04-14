@@ -1,37 +1,33 @@
-use super::tokens::*;
 use super::error::TokenizerError;
+use super::tokens::*;
 use core::fmt;
 use std::str::FromStr;
 
-
 use nom::{
-    sequence::{pair, preceded, delimited},
     branch::alt,
-    bytes::complete::{tag, is_not, take, escaped_transform},
-    combinator::{recognize, value, all_consuming},
+    bytes::complete::{escaped_transform, is_not, tag, take},
     character::complete::{alpha1, alphanumeric1, digit1, multispace1},
-    multi::{many0_count, many0},
-    IResult, Parser
+    combinator::{all_consuming, recognize, value},
+    multi::{many0, many0_count},
+    sequence::{delimited, pair, preceded},
+    IResult, Parser,
 };
-
 
 fn parse_comment(input: &str) -> IResult<&str, &str> {
     preceded(
         tag("/all "), //first find '/all '
-        is_not("\n") // Then parse till new line.
-    ).parse(input)
+        is_not("\n"), // Then parse till new line.
+    )
+    .parse(input)
 }
 
 fn parse_keyword(input: &str) -> IResult<&str, Token> {
-
     // Either parse a one word keyword, then try two words (go next)
     let one_word = alphanumeric1.map_res(Keyword::from_str);
-    let two_words = recognize(pair(alphanumeric1, pair(multispace1, alphanumeric1))).map_res(Keyword::from_str);
+    let two_words =
+        recognize(pair(alphanumeric1, pair(multispace1, alphanumeric1))).map_res(Keyword::from_str);
 
-    alt((
-        one_word,
-        two_words,
-    )).map(Token::Keyword).parse(input)
+    alt((one_word, two_words)).map(Token::Keyword).parse(input)
 }
 
 fn parse_type(input: &str) -> IResult<&str, Token> {
@@ -47,76 +43,60 @@ fn parse_symbol(input: &str) -> IResult<&str, Token> {
     let arrow = tag("->").map_res(Symbol::from_str);
     let others = take(1usize).map_res(Symbol::from_str);
 
-    alt((
-        arrow,
-        others
-    )).map(Token::Symbol)
-        .parse(input)
+    alt((arrow, others)).map(Token::Symbol).parse(input)
 }
 
 fn parse_operator(input: &str) -> IResult<&str, Token> {
-
     // Some operators are two characters long, and must be checked before the one character long
     // ones, since some share the same first character
     let two_char_op = take(2usize).map_res(Operator::from_str);
     let one_char_op = take(1usize).map_res(Operator::from_str);
 
-    alt((
-        two_char_op,
-        one_char_op
-    )).map(Token::Operator)
+    alt((two_char_op, one_char_op))
+        .map(Token::Operator)
         .parse(input)
 }
 
 fn parse_gold_literal(input: &str) -> IResult<&str, Token> {
     digit1
-        .map( |s: &str| Literal::GoldLit(s.to_string()) )
+        .map(|s: &str| Literal::GoldLit(s.to_string()))
         .map(Token::Literal)
         .parse(input)
 }
 
 fn parse_chat_literal(input: &str) -> IResult<&str, Token> {
-
     let parse_escaped = alt((
         value("\n", tag("n")), //convert the escaped tag to the LHS value
         value("\t", tag("t")),
-
-        take(1usize) //otherwise just keep it as is
+        take(1usize), //otherwise just keep it as is
     ));
 
     // This allows escaped double quotes and such in our strings
     let string_content = escaped_transform(
         is_not("\\\""), // Parse everything but backslash and "
-        '\\',         // Upon finding a backslash
-        parse_escaped // parse it with this
+        '\\',           // Upon finding a backslash
+        parse_escaped,  // parse it with this
     );
 
-    delimited(
-        tag("\""),
-        string_content,
-        tag("\"")
-    ).map(Literal::ChatLit)
+    delimited(tag("\""), string_content, tag("\""))
+        .map(Literal::ChatLit)
         .map(Token::Literal)
         .parse(input)
 }
 
 fn parse_literal(input: &str) -> IResult<&str, Token> {
-    alt((
-        parse_gold_literal,
-        parse_chat_literal
-    )).parse(input)
+    alt((parse_gold_literal, parse_chat_literal)).parse(input)
 }
 
 // Note that this WILL parse keywords, which is why keywords must have higher priority in parsing.
 // Identifiers should have the least priority, since it can catch a lot of stuff
 fn parse_identifier(input: &str) -> IResult<&str, Token> {
-    recognize(
-        pair(
-            alpha1,                                     // Parse an alphabet character
-            many0_count(alt((alphanumeric1, tag("_")))) // then alphanumeric characters or _
-        )
-    ).map( |s: &str| Token::Identifier(s.to_string()) )
-        .parse(input)
+    recognize(pair(
+        alpha1,                                      // Parse an alphabet character
+        many0_count(alt((alphanumeric1, tag("_")))), // then alphanumeric characters or _
+    ))
+    .map(|s: &str| Token::Identifier(s.to_string()))
+    .parse(input)
 }
 
 // Parsing order:
@@ -130,21 +110,16 @@ fn parse_identifier(input: &str) -> IResult<&str, Token> {
 // Eof
 
 fn next_token(input: &str) -> IResult<&str, Token> {
-
     // Things to ignore while parsing: whitespace and comments
     // ignore them many times, until we don't find them anymore (many0_count)
     fn ignore(input: &str) -> IResult<&str, usize> {
-        many0_count(
-            alt((
-                multispace1,
-                parse_comment
-            ))
-        ).parse(input)
+        many0_count(alt((multispace1, parse_comment))).parse(input)
     }
 
     delimited(
         ignore, // This is discarded
-        alt((   // Parse in priority order
+        alt((
+            // Parse in priority order
             parse_keyword,
             parse_type,
             parse_symbol,
@@ -152,64 +127,60 @@ fn next_token(input: &str) -> IResult<&str, Token> {
             parse_literal,
             parse_identifier,
         )),
-        ignore
-    ).parse(input)
+        ignore,
+    )
+    .parse(input)
 }
 
 fn parse_whole_input(input: &str) -> IResult<&str, Vec<Token>> {
     // Parse next_token as many times as possible but require that the input string gets completely
     // consumed, otherwise parsing has failed somewhere
-    all_consuming(
-        many0(next_token)
-    ).map( |mut tokens| { // Add an Eof token at the end
+    all_consuming(many0(next_token))
+        .map(|mut tokens| {
+            // Add an Eof token at the end
             tokens.push(Token::Eof);
             tokens
         })
         .parse(input)
 }
 
-
 pub fn tokenize(input: &str) -> Result<Vec<Token>, TokenizerError> {
     match parse_whole_input(input) {
-        Ok(( _, tokens )) => Ok(tokens),
-        Err(e) => {
-            Err(TokenizerError::from_nom_err(e, input))
-        }
+        Ok((_, tokens)) => Ok(tokens),
+        Err(e) => Err(TokenizerError::from_nom_err(e, input)),
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::util::*;
+    use super::*;
 
     // Macro which tests that all elements in $strs parse to the corresponding token in $enums when
     // parsed with $parser
     macro_rules! test_pair {
         ($strs:expr, $enums:expr, $parser:ident, $token:path) => {
-            $strs.iter().zip($enums).for_each(
-                | (tstr, tenum) | {
-                    let Ok(( _, token )) = $parser(tstr) else {
-                        panic!("'{tstr}' should have parsed to {}({tenum:?}), but parsing failed.", stringify!($token));
-                    };
-                    
-                    assert_eq!(token, $token(tenum));
-                }
-            )
-        }
+            $strs.iter().zip($enums).for_each(|(tstr, tenum)| {
+                let Ok((_, token)) = $parser(tstr) else {
+                    panic!(
+                        "'{tstr}' should have parsed to {}({tenum:?}), but parsing failed.",
+                        stringify!($token)
+                    );
+                };
+
+                assert_eq!(token, $token(tenum));
+            })
+        };
     }
 
     // Macro to test that parsing each string in $strs should fail with $parser
     macro_rules! test_fail {
         ($strs:expr, $parser:ident) => {
-            $strs.iter().for_each(
-                |s| {
-                    let result = $parser(s);
-                    assert!(result.is_err());
-                }
-            )
-        }
+            $strs.iter().for_each(|s| {
+                let result = $parser(s);
+                assert!(result.is_err());
+            })
+        };
     }
 
     // Comment parsing
@@ -217,14 +188,14 @@ mod tests {
     fn test_comment() {
         let input = "/all noob team x9 jungle";
         let result = parse_comment(input);
-        assert_eq!( result, Ok(("", "noob team x9 jungle") )); // Should parse the whole line and return ()
+        assert_eq!(result, Ok(("", "noob team x9 jungle"))); // Should parse the whole line and return ()
     }
 
     #[test]
     fn test_comment_stop_on_newline() {
         let input = "/all noob team x9 jungle\nbuy x = 5;";
         let result = parse_comment(input);
-        assert_eq!( result, Ok(("\nbuy x = 5;", "noob team x9 jungle") )); // Should parse until \n, then stop
+        assert_eq!(result, Ok(("\nbuy x = 5;", "noob team x9 jungle"))); // Should parse until \n, then stop
     }
 
     // Keywords
@@ -232,8 +203,13 @@ mod tests {
     fn test_keyword() {
         use Keyword::*;
 
-        let keywords = ["nexus", "ability", "buy", "coinflip", "ff15", "go next", "ping", "recall", "true", "false"];
-        let keyword_enums = [Nexus, Ability, Buy, Coinflip, Ff15, GoNext, Ping, Recall, True, False];
+        let keywords = [
+            "nexus", "ability", "buy", "coinflip", "ff15", "go next", "ping", "recall", "true",
+            "false",
+        ];
+        let keyword_enums = [
+            Nexus, Ability, Buy, Coinflip, Ff15, GoNext, Ping, Recall, True, False,
+        ];
         test_pair!(keywords, keyword_enums, parse_keyword, Token::Keyword);
     }
 
@@ -251,7 +227,10 @@ mod tests {
         let result = parse_identifier(input);
         assert_eq!(
             result,
-            Ok( (" * 50", Token::Identifier("the_best_v4r14bl3_name420".to_string())) )
+            Ok((
+                " * 50",
+                Token::Identifier("the_best_v4r14bl3_name420".to_string())
+            ))
         )
     }
 
@@ -284,9 +263,21 @@ mod tests {
     fn test_symbols() {
         use Symbol::*;
         let symbols = ["(", ")", "{", "}", "[", "]", "<", ">", ";", ":", ",", "->"];
-        let symbol_enums = [ParenOpen, ParenClose, CurlyOpen, CurlyClose, SquareOpen, SquareClose, AngleOpen, AngleClose, Semicolon, Colon, Comma, Arrow];
+        let symbol_enums = [
+            ParenOpen,
+            ParenClose,
+            CurlyOpen,
+            CurlyClose,
+            SquareOpen,
+            SquareClose,
+            AngleOpen,
+            AngleClose,
+            Semicolon,
+            Colon,
+            Comma,
+            Arrow,
+        ];
         test_pair!(symbols, symbol_enums, parse_symbol, Token::Symbol);
-        
     }
 
     #[test]
@@ -300,8 +291,24 @@ mod tests {
     #[test]
     fn test_operators() {
         use Operator::*;
-        let operators = ["=", "+", "-", "*", "/", "%", "==", "!=", "<=", ">=", "&&", "||", "!"];
-        let operator_enums = [Assignment, Plus, Minus, Mult, Divide, Modulo, Equals, NotEquals, LessEquals, GreaterEquals, And, Or, Negate];
+        let operators = [
+            "=", "+", "-", "*", "/", "%", "==", "!=", "<=", ">=", "&&", "||", "!",
+        ];
+        let operator_enums = [
+            Assignment,
+            Plus,
+            Minus,
+            Mult,
+            Divide,
+            Modulo,
+            Equals,
+            NotEquals,
+            LessEquals,
+            GreaterEquals,
+            And,
+            Or,
+            Negate,
+        ];
         test_pair!(operators, operator_enums, parse_operator, Token::Operator);
     }
 
@@ -315,23 +322,17 @@ mod tests {
     // Chat literals
     #[test]
     fn test_chat_literal() {
-
         let inputs = [
             r#""Hello, world!""#,
             r#""Hello, \"world\"...""#,
             r#""This is a\nnew line!""#,
-            r#""nexus() {\n\tbuy x = 5;\n\tping(x);\n}""#
+            r#""nexus() {\n\tbuy x = 5;\n\tping(x);\n}""#,
         ];
         let outputs = [
             "Hello, world!",
             r#"Hello, "world"..."#,
             "This is a\nnew line!",
-            concat!(
-                "nexus() {\n",
-                "\tbuy x = 5;\n",
-                "\tping(x);\n",
-                "}"
-            )
+            concat!("nexus() {\n", "\tbuy x = 5;\n", "\tping(x);\n", "}"),
         ];
 
         test_pair!(inputs, outputs, parse_literal, chat_lit)
@@ -348,7 +349,7 @@ mod tests {
     #[test]
     fn test_gold_literal() {
         let nums = [34795, 12034, 0, 1293, 5892];
-        let inputs = nums.map( |n| n.to_string() );
+        let inputs = nums.map(|n| n.to_string());
         let outputs = nums;
 
         test_pair!(inputs, outputs, parse_literal, gold_lit);
@@ -375,12 +376,27 @@ nexus() {
    "#;
 
         let tokens = vec![
-            keyword("nexus"), sym("("), sym(")"), sym("{"),
-            keyword("buy"), ident("my_variable"), op("="), chat_lit("Hello world!"), sym(";"),
-            keyword("ping"), sym("("), ident("my_variable"), sym(")"), sym(";"),
-            keyword("recall"), gold_lit(5), op("+"), gold_lit(9), sym(";"),
+            keyword("nexus"),
+            sym("("),
+            sym(")"),
+            sym("{"),
+            keyword("buy"),
+            ident("my_variable"),
+            op("="),
+            chat_lit("Hello world!"),
+            sym(";"),
+            keyword("ping"),
+            sym("("),
+            ident("my_variable"),
+            sym(")"),
+            sym(";"),
+            keyword("recall"),
+            gold_lit(5),
+            op("+"),
+            gold_lit(9),
+            sym(";"),
             sym("}"),
-            Token::Eof
+            Token::Eof,
         ];
 
         // let Ok(result) = tokenize(input) else {
@@ -389,14 +405,13 @@ nexus() {
 
         match tokenize(input) {
             Ok(res) => assert_eq!(res, tokens),
-            Err(e) => panic!("{e}")
+            Err(e) => panic!("{e}"),
         }
     }
 
     #[test]
     fn test_tokenizer_fail() {
-        let input = 
-r#"
+        let input = r#"
 nexus() {
     /all noob team go die
     buy my_variable = "Hello world!";
@@ -414,5 +429,3 @@ nexus() {
         assert!(result.is_err());
     }
 }
-
-

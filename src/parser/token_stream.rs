@@ -12,7 +12,11 @@ type Err = ParseError;
 
 impl<'a> TokenStream<'a> {
     pub fn new(tokens: &'a [Token]) -> Self {
-        Self{ tokens, pos: 0, saved_pos: 0 }
+        Self {
+            tokens,
+            pos: 0,
+            saved_pos: 0,
+        }
     }
 
     // Get current token
@@ -47,16 +51,16 @@ impl<'a> TokenStream<'a> {
     }
 
     // Get current token, move forward if the predicate evaluates to true
-    pub fn expect<F>(&mut self, predicate: F) -> Result<&'a Token, ParseError> 
-    where 
+    pub fn expect<F>(&mut self, predicate: F) -> Result<&'a Token, ParseError>
+    where
         F: FnOnce(&Token) -> bool,
     {
         let token = self.peek()?;
 
         if predicate(token) {
             let _ = self.advance();
-            return Ok(token)
-        } 
+            return Ok(token);
+        }
 
         Err(ParseError::UnexpectedToken)
     }
@@ -87,17 +91,31 @@ nexus() {
 
         use crate::lexer::util::*;
         let should_be = vec![
-            keyword("nexus"), sym("("), sym(")"), sym("{"),
-            keyword("buy"), ident("my_variable"), op("="), chat_lit("Hello world!"), sym(";"),
-            keyword("ping"), sym("("), ident("my_variable"), sym(")"), sym(";"),
-            keyword("recall"), gold_lit(5), op("+"), gold_lit(9), sym(";"),
+            keyword("nexus"),
+            sym("("),
+            sym(")"),
+            sym("{"),
+            keyword("buy"),
+            ident("my_variable"),
+            op("="),
+            chat_lit("Hello world!"),
+            sym(";"),
+            keyword("ping"),
+            sym("("),
+            ident("my_variable"),
+            sym(")"),
+            sym(";"),
+            keyword("recall"),
+            gold_lit(5),
+            op("+"),
+            gold_lit(9),
+            sym(";"),
             sym("}"),
-            Token::Eof
+            Token::Eof,
         ];
 
-        should_be.into_iter().for_each( |tok| {
-            assert!(stream.expect(|token| matches!(token, tok) ).is_ok());
+        should_be.into_iter().for_each(|tok| {
+            assert!(stream.expect(|token| matches!(token, tok)).is_ok());
         })
-
     }
 }

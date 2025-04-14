@@ -1,8 +1,8 @@
-pub mod tokens;
-mod lexer_impl;
 mod error;
+mod lexer_impl;
+pub mod tokens;
 
 pub mod util;
 
-pub use tokens::*;
 pub use lexer_impl::tokenize;
+pub use tokens::*;

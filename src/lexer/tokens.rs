@@ -80,7 +80,6 @@ pub enum Symbol {
     Arrow, // '->'
 }
 
-
 use Token::*;
 impl Token {
     pub fn is_keyword(&self) -> bool {
