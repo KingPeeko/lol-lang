@@ -271,6 +271,21 @@ fn parse_inventory_items(input: TokenStream) -> IResult<TokenStream, Vec<Expr>> 
     .parse(rest)
 }
 
+
+// STATEMENT PRASING SECTION
+
+fn parse_ping_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
+    (
+        keyword(Keyword::Ping),
+        symbol(Symbol::ParenOpen),
+        parse_expr,
+        symbol(Symbol::ParenClose),
+        symbol(Symbol::Semicolon),
+    )
+    .map(|(_, _, printed_value, _, _)| Stmt::Ping { value: (printed_value) })
+    .parse(input)
+}
+
 //     fn parse_decl(&mut self) -> Result<Decl, Err> {
 //         todo!();
 //         let kw = expect_unwrap!(self.stream, Token::Keyword)?;
