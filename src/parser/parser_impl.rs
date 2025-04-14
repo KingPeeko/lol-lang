@@ -2,13 +2,14 @@ use super::token_stream::TokenStream;
 use crate::ast::*;
 use crate::lexer::tokens::{Keyword, Literal, Operator, Symbol, Token};
 
+use nom::multi::separated_list0;
 use nom::Input;
 use nom::{
     branch::alt,
     bytes::complete::take,
     combinator::value,
     error::{ErrorKind, ParseError},
-    multi::{fold_many0, separated_list0},
+    multi::{fold_many0, many0, separated_list0},
     Err::Error,
     IResult, Parser,
 };
@@ -324,6 +325,76 @@ fn parse_ping_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
     )
     .map(|(_, _, printed_value, _, _)| Stmt::Ping { value: (printed_value) })
     .parse(input)
+}
+
+fn parse_statement(input: TokenStream) -> IResult<TokenStream, Stmt> {
+    todo!()
+}
+
+fn parse_decl(input: TokenStream) -> IResult<TokenStream, Decl> {
+    alt((parse_nexus, parse_ability, parse_item)).parse(input)
+}
+
+fn parse_nexus(input: TokenStream) -> IResult<TokenStream, Decl> {
+    let (rest, (_, _, _, _, statements, _)) = (
+        keyword(Keyword::Nexus),
+        symbol(Symbol::ParenOpen),
+        symbol(Symbol::ParenClose),
+        symbol(Symbol::CurlyOpen),
+        many0(parse_statement),
+        symbol(Symbol::CurlyClose),
+    )
+        .parse(input)?;
+
+    return Ok((rest, Decl::Nexus { body: statements }));
+}
+
+fn parse_ability(input: TokenStream) -> IResult<TokenStream, Decl> {
+    (
+        keyword(Keyword::Ability),
+        identifier,
+        symbol(Symbol::ParenOpen),
+        separated_list0(symbol(Symbol::Comma), parse_param),
+        symbol(Symbol::ParenClose),
+        symbol(Symbol::Arrow),
+        parse_type,
+        symbol(Symbol::CurlyOpen),
+        many0(parse_statement),
+        symbol(Symbol::CurlyClose),
+    )
+        .map(
+            |(_, name, _, params, _, _, return_type, _, statements, _)| Decl::Ability {
+                name,
+                params,
+                return_type,
+                body: statements,
+            },
+        )
+        .parse(input)
+}
+
+fn parse_param(input: TokenStream) -> IResult<TokenStream, Param> {
+    (identifier, symbol(Symbol::Comma), parse_type)
+        .map(|(name, _, ty)| Param { name, ty })
+        .parse(input)
+}
+
+fn parse_item(input: TokenStream) -> IResult<TokenStream, Decl> {
+    (
+        keyword(Keyword::Buy),
+        identifier,
+        symbol(Symbol::Comma),
+        parse_type,
+        operator(Operator::Equals),
+        parse_expr,
+        symbol(Symbol::Semicolon),
+    )
+        .map(|(_, name, _, ty, _, initializer, _)| Decl::Item {
+            name,
+            ty,
+            initializer,
+        })
+        .parse(input)
 }
 
 //     fn parse_decl(&mut self) -> Result<Decl, Err> {
