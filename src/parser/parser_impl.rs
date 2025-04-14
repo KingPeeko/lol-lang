@@ -8,7 +8,7 @@ use nom::{
     bytes::complete::take,
     combinator::value,
     error::{ErrorKind, ParseError},
-    multi::fold_many0,
+    multi::{fold_many0, separated_list0},
     Err::Error,
     IResult, Parser,
 };
@@ -280,6 +280,21 @@ fn parse_binary_op(input: TokenStream) -> IResult<TokenStream, BinaryOp> {
     any_token.map_res(BinaryOp::try_from).parse(input)
 }
 
+// Parse into Expr::Unary
+fn parse_unary_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
+    (parse_unary_op, parse_expr)
+        .map(|(op, expr)| Expr::Unary {
+            operator: op,
+            right: Box::new(expr),
+        })
+        .parse(input)
+}
+
+// Parse into UnaryOp
+fn parse_unary_op(input: TokenStream) -> IResult<TokenStream, UnaryOp> {
+    any_token.map_res(UnaryOp::try_from).parse(input)
+}
+
 // Parse into Expr::Inventory
 fn parse_inventory_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
     (
@@ -464,24 +479,23 @@ mod test {
         assert_eq!(inv, should_be);
     }
 
-    //
-    // #[test]
-    // fn test_parse_binary_expr() {
-    //     todo!(); // Needs parse_expr first
-    //     let tokens = [gold_lit(5000), op("*"), op("-"), gold_lit(1)];
-    //
-    //     let mut parser = Parser::new(&tokens);
-    //     let result = parser.parse_binary_expr().unwrap();
-    //
-    //     let should_be = Expr::Binary {
-    //         left: Box::new(Expr::Integer(5000)),
-    //         operator: BinaryOp::Multiply,
-    //         right: Box::new(Expr::Unary {
-    //             operator: UnaryOp::Negate,
-    //             right: Box::new(Expr::Integer(1)),
-    //         }),
-    //     };
-    //
-    //     assert_eq!(result, should_be);
-    // }
+    #[test]
+    #[ignore = "needs parse_expr to be complete"]
+    fn test_parse_binary_expr() {
+        use crate::lexer::util::*;
+        let tokens = [gold_lit(5000), op("*"), op("-"), gold_lit(1)];
+
+        let (_, result) = parse_binary_expr.parse(TokenStream::new(&tokens)).unwrap();
+
+        let should_be = Expr::Binary {
+            left: Box::new(Expr::Integer(5000)),
+            operator: BinaryOp::Multiply,
+            right: Box::new(Expr::Unary {
+                operator: UnaryOp::Negate,
+                right: Box::new(Expr::Integer(1)),
+            }),
+        };
+
+        assert_eq!(result, should_be);
+    }
 }
