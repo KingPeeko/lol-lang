@@ -160,6 +160,17 @@ impl TryFrom<crate::lexer::Token> for BinaryOp {
     }
 }
 
+pub fn operator_precedence(op: &BinaryOp) -> u8 {
+    use BinaryOp::*;
+    match op {
+        Multiply | Divide | Modulo => 4,
+        Add | Subtract => 3,
+        Less | LessEqual | Greater | GreaterEqual | Equal | NotEqual => 2,
+        And => 1,
+        Or => 0,
+    }
+}
+
 pub struct InvalidUnaryOp;
 impl TryFrom<crate::lexer::Token> for UnaryOp {
     type Error = InvalidUnaryOp;

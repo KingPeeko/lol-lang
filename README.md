@@ -52,6 +52,7 @@ A programming language based on C syntax and League of Legends terms.
                | <group-expr>
                | <inventory-expr>
                | <duo-expr>
+               | <shop-expr>
                | <index-expr>
 
 <binary-expr> ::= <expression> <binary-op> <expression>

@@ -1,18 +1,15 @@
 use super::token_stream::TokenStream;
 use crate::ast::*;
 use crate::lexer::tokens::{Keyword, Literal, Operator, Symbol, Token};
-use crate::lexer::util::sym;
 
-use nom::multi::many0;
-use nom::Input;
 use nom::{
     branch::alt,
     bytes::complete::take,
     combinator::value,
     error::{ErrorKind, ParseError},
-    multi::separated_list0,
+    multi::{fold_many1, many0, separated_list0},
     Err::Error,
-    IResult, Parser,
+    IResult, Input, Parser,
 };
 
 // type TokenStream<'a> = &'a [Token];
@@ -208,7 +205,22 @@ fn parse_inventory_type(input: TokenStream) -> IResult<TokenStream, AstType> {
 
 // Parse into an Expr AST
 fn parse_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
-    todo!();
+    alt((parse_index_expr, parse_primary_expr, parse_binary_expr)).parse(input)
+}
+
+// Parse primary expressions, AKA expressions that don't have an expr as their first part
+fn parse_primary_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
+    alt((
+        parse_group_expr,
+        parse_duo_expr,
+        parse_inventory_expr,
+        parse_shop_expr,
+        parse_unary_expr,
+        parse_call_expr,
+        parse_literal_expr,
+        parse_identifier,
+    ))
+    .parse(input)
 }
 
 // Parse into Expr::Identifier
@@ -217,7 +229,7 @@ fn parse_identifier(input: TokenStream) -> IResult<TokenStream, Expr> {
 }
 
 // Parse into Expr literal type
-fn parse_lit(input: TokenStream) -> IResult<TokenStream, Expr> {
+fn parse_literal_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
     alt((
         parse_status_lit,
         parse_void_lit,
@@ -262,19 +274,52 @@ fn parse_group_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
         parse_expr,
         symbol(Symbol::ParenClose),
     )
-        .map(|(_, expr, _)| expr)
+        .map(|(_, expr, _)| Expr::Group(Box::new(expr)))
         .parse(input)
 }
 
 // Parse into Expr::Binary
 fn parse_binary_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
-    (parse_expr, parse_binary_op, parse_expr)
-        .map(|(expr1, op, expr2)| Expr::Binary {
-            left: Box::new(expr1),
+    let (rest, expr) = parse_primary_expr.parse(input)?;
+    parse_binary_expr_prec(expr, 0).parse(rest)
+}
+
+// Recursive function called in parse_binary_expr
+// Parses binary expressions while respecting operator precedence, ie. multiplication binds
+// stronger than addition or subtraction
+fn parse_binary_expr_prec(
+    lhs: Expr,
+    min_precedence: u8,
+) -> impl Fn(TokenStream) -> IResult<TokenStream, Expr> {
+    move |input: TokenStream| {
+        let Ok((rest, op)) = parse_binary_op.parse(input) else {
+            return Ok((input, lhs.clone()));
+        };
+
+        // If the parsed operators precedence is less then minimum, return the accumulated
+        // expression `lhs`
+        let op_precedence = operator_precedence(&op);
+        if op_precedence < min_precedence {
+            return Ok((input, lhs.clone()));
+        }
+
+        // Otherwise parse a new rhs
+        let (rest, rhs) = parse_primary_expr.parse(rest)?;
+
+        // Check if parsing further produces an even higher precedence binary operator, and if so,
+        // make that the new rhs. Needed for left-associativeness
+        let next_min_precedence = op_precedence + 1;
+        let (rest, rhs) = parse_binary_expr_prec(rhs, next_min_precedence).parse(rest)?;
+
+        // Create a new lhs for parsing with the original precedence
+        let lhs = Expr::Binary {
+            left: Box::new(lhs.clone()),
             operator: op,
-            right: Box::new(expr2),
-        })
-        .parse(input)
+            right: Box::new(rhs),
+        };
+
+        parse_binary_expr_prec(lhs, min_precedence).parse(rest)
+    }
 }
 
 // Parse into BinaryOp
@@ -308,6 +353,7 @@ fn parse_inventory_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
         .parse(input)
 }
 
+// Parse Expr::Duo
 fn parse_duo_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
     (
         symbol(Symbol::ParenOpen),
@@ -320,6 +366,7 @@ fn parse_duo_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
         .parse(input)
 }
 
+// Parse Expr::Shop
 fn parse_shop_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
     (
         symbol(Symbol::CurlyOpen),
@@ -330,6 +377,7 @@ fn parse_shop_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
         .parse(input)
 }
 
+// Parse Expr::Shop's inner item
 fn parse_shop_item(input: TokenStream) -> IResult<TokenStream, (Expr, Expr)> {
     (
         symbol(Symbol::ParenOpen),
@@ -342,6 +390,7 @@ fn parse_shop_item(input: TokenStream) -> IResult<TokenStream, (Expr, Expr)> {
         .parse(input)
 }
 
+// Parsing Expr::Call
 fn parse_call_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
     (
         identifier,
@@ -356,25 +405,31 @@ fn parse_call_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
         .parse(input)
 }
 
+// Parse an Expr::Index
 fn parse_index_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
-    (
-        parse_expr,
-        symbol(Symbol::SquareOpen),
-        parse_expr,
-        symbol(Symbol::SquareClose),
-    )
-        .map(|(inventory, _, idx, _)| Expr::Index {
-            object: Box::new(inventory),
+    let (rest, expr) = parse_primary_expr.parse(input)?;
+
+    // May parse multiple indexing expressions in a row
+    fold_many1(
+        (
+            symbol(Symbol::SquareOpen),
+            parse_expr,
+            symbol(Symbol::SquareClose),
+        ),
+        move || expr.clone(),
+        |acc, (_, idx, _)| Expr::Index {
+            object: Box::new(acc),
             index: Box::new(idx),
-        })
-        .parse(input)
+        },
+    )
+    .parse(rest)
 }
 
 // STATEMENT PRASING SECTION
 
 // Parse statements
 fn parse_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
-    alt((parse_ping_stmt, parse_gonext_stmt, parse_block_stmt,)).parse(input)
+    alt((parse_ping_stmt, parse_gonext_stmt, parse_block_stmt)).parse(input)
 }
 
 // Parse into Stmt::Block
@@ -417,8 +472,7 @@ fn parse_gonext_stmt(input: TokenStream) -> IResult<TokenStream, Stmt> {
             body: Box::new(block),
         })
         .parse(input)
-    }
-
+}
 
 // DECLARATION PARSING SECTION
 
@@ -607,7 +661,9 @@ mod test {
         ];
 
         // let (_, (res1, res2, res3, res4)) = (parse_lit, parse_lit, parse_lit, parse_lit).parse(TokenStream::new(&tokens)).unwrap();
-        let (_, res): (_, Vec<Expr>) = many(4, parse_lit).parse(TokenStream::new(&tokens)).unwrap();
+        let (_, res): (_, Vec<Expr>) = many(4, parse_literal_expr)
+            .parse(TokenStream::new(&tokens))
+            .unwrap();
 
         assert_eq!(res[0], Expr::Integer(2938));
         assert_eq!(res[1], Expr::String("hello world".to_string()));
@@ -616,7 +672,6 @@ mod test {
     }
 
     #[test]
-    #[ignore = "needs parse_expr to be complete"]
     fn test_parse_inventory_expr() {
         use crate::lexer::util::*;
         let tokens = [
@@ -643,7 +698,6 @@ mod test {
     }
 
     #[test]
-    #[ignore = "needs parse_expr to be complete"]
     fn test_parse_duo_expr() {
         use crate::lexer::util::*;
         let tokens = [
@@ -665,7 +719,6 @@ mod test {
     }
 
     #[test]
-    #[ignore = "needs parse_expr to be complete"]
     fn test_parse_shop_expr() {
         use crate::lexer::util::*;
         let tokens = [
@@ -689,13 +742,23 @@ mod test {
     }
 
     #[test]
-    #[ignore = "needs parse_expr to be complete"]
     fn test_parse_index_expr() {
         use crate::lexer::util::*;
-        let tokens = [ident("my_list"), sym("["), gold_lit(2), sym("]")];
+        let tokens = [
+            ident("my_list"),
+            sym("["),
+            gold_lit(2),
+            sym("]"),
+            sym("["),
+            gold_lit(2),
+            sym("]"),
+        ];
 
         let should_be = Expr::Index {
-            object: Box::new(Expr::Identifier("my_list".to_string())),
+            object: Box::new(Expr::Index {
+                object: Box::new(Expr::Identifier("my_list".to_string())),
+                index: Box::new(Expr::Integer(2)),
+            }),
             index: Box::new(Expr::Integer(2)),
         };
 
@@ -705,7 +768,6 @@ mod test {
     }
 
     #[test]
-    #[ignore = "needs parse_expr to be complete"]
     fn test_parse_call_expr() {
         use crate::lexer::util::*;
         let tokens = [
@@ -734,19 +796,29 @@ mod test {
     }
 
     #[test]
-    #[ignore = "needs parse_expr to be complete"]
     fn test_parse_binary_expr() {
         use crate::lexer::util::*;
-        let tokens = [gold_lit(5000), op("*"), op("-"), gold_lit(1)];
+        let tokens = [
+            gold_lit(1000),
+            op("+"),
+            op("-"),
+            gold_lit(5000),
+            op("*"),
+            gold_lit(5000),
+        ];
 
         let (_, result) = parse_binary_expr.parse(TokenStream::new(&tokens)).unwrap();
 
         let should_be = Expr::Binary {
-            left: Box::new(Expr::Integer(5000)),
-            operator: BinaryOp::Multiply,
-            right: Box::new(Expr::Unary {
-                operator: UnaryOp::Negate,
-                right: Box::new(Expr::Integer(1)),
+            left: Box::new(Expr::Integer(1000)),
+            operator: BinaryOp::Add,
+            right: Box::new(Expr::Binary {
+                left: Box::new(Expr::Unary {
+                    operator: UnaryOp::Negate,
+                    right: Box::new(Expr::Integer(5000)),
+                }),
+                operator: BinaryOp::Multiply,
+                right: Box::new(Expr::Integer(5000)),
             }),
         };
 
