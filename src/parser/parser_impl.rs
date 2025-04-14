@@ -2,7 +2,6 @@ use super::token_stream::TokenStream;
 use crate::ast::*;
 use crate::lexer::tokens::{Keyword, Literal, Operator, Symbol, Token};
 
-use nom::multi::separated_list0;
 use nom::Input;
 use nom::{
     branch::alt,
@@ -300,16 +299,25 @@ fn parse_unary_op(input: TokenStream) -> IResult<TokenStream, UnaryOp> {
 fn parse_inventory_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
     (
         symbol(Symbol::SquareOpen),
-        parse_inventory_items,
+        separated_list0(symbol(Symbol::Comma), parse_expr),
         symbol(Symbol::SquareClose),
     )
         .map(|(_, items, _)| Expr::Inventory(items))
         .parse(input)
 }
 
-// Parse the items that go in Expr::Inventory
-fn parse_inventory_items(input: TokenStream) -> IResult<TokenStream, Vec<Expr>> {
-    separated_list0(symbol(Symbol::Comma), parse_expr).parse(input)
+fn parse_call_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
+    (
+        identifier,
+        symbol(Symbol::ParenOpen),
+        separated_list0(symbol(Symbol::Comma), parse_expr),
+        symbol(Symbol::ParenClose),
+    )
+        .map(|(func_name, _, args, _)| Expr::Call {
+            callee: func_name,
+            args,
+        })
+        .parse(input)
 }
 
 // STATEMENT PRASING SECTION
@@ -538,6 +546,7 @@ mod test {
             keyword("true"),
             sym(","),
             ident("what_up"),
+            sym("]"),
         ];
 
         let should_be = Expr::Inventory(vec![
@@ -551,6 +560,35 @@ mod test {
             .unwrap();
 
         assert_eq!(inv, should_be);
+    }
+
+    #[test]
+    #[ignore = "needs parse_expr to be complete"]
+    fn test_call_expr() {
+        use crate::lexer::util::*;
+        let tokens = [
+            ident("yap"),
+            sym("("),
+            chat_lit("hello world"),
+            sym(","),
+            keyword("true"),
+            sym(","),
+            ident("what_up"),
+            sym(")"),
+        ];
+
+        let should_be = Expr::Call {
+            callee: "yap".to_string(),
+            args: vec![
+                Expr::String("hello world".to_string()),
+                Expr::Boolean(true),
+                Expr::Identifier("what_up".to_string()),
+            ],
+        };
+
+        let (_, result) = parse_call_expr.parse(TokenStream::new(&tokens)).unwrap();
+
+        assert_eq!(result, should_be);
     }
 
     #[test]
