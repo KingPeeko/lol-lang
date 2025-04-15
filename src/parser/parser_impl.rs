@@ -6,9 +6,10 @@ use nom::combinator::opt;
 use nom::{
     branch::alt,
     bytes::complete::take,
-    combinator::value,
+    combinator::{value, verify},
     error::{ErrorKind, ParseError},
     multi::{fold_many1, many0, separated_list0},
+    sequence::terminated,
     Err::Error,
     IResult, Input, Parser,
 };
@@ -17,6 +18,19 @@ use nom::{
 
 type TokType = crate::lexer::tokens::Type;
 type AstType = crate::ast::Type;
+
+#[derive(Debug, Clone)]
+pub enum ParsingError {
+    ParseFailed,
+}
+
+pub fn parse(tokens: &[Token]) -> Result<Program, ParsingError> {
+    let stream = TokenStream::new(tokens);
+    match parse_program.parse(stream) {
+        Ok((_, program)) => Ok(program),
+        Err(_e) => Err(ParsingError::ParseFailed),
+    }
+}
 
 ///////////////////////////////////////////////UTIL FUNCTIONS///////////////////////////////////////////////////
 // Utility function for creating a nom error
@@ -136,6 +150,11 @@ fn symbol(expected: Symbol) -> impl Fn(TokenStream) -> IResult<TokenStream, Symb
         }
     }
 }
+
+fn eof(input: TokenStream) -> IResult<TokenStream, Token> {
+    verify(any_token, |token| matches!(token, Token::Eof)).parse(input)
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Parse into a type AST
@@ -206,7 +225,7 @@ fn parse_inventory_type(input: TokenStream) -> IResult<TokenStream, AstType> {
 
 // Parse into an Expr AST
 fn parse_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
-    alt((parse_index_expr, parse_primary_expr, parse_binary_expr)).parse(input)
+    alt((parse_index_expr, parse_binary_expr, parse_primary_expr)).parse(input)
 }
 
 // Parse primary expressions, AKA expressions that don't have an expr as their first part
@@ -279,6 +298,10 @@ fn parse_group_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
         .parse(input)
 }
 
+fn parse_primary_and_literal(input: TokenStream) -> IResult<TokenStream, Expr> {
+    alt((parse_primary_expr, parse_literal_expr)).parse(input)
+}
+
 // Parse into Expr::Binary
 fn parse_binary_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
     let (rest, expr) = parse_primary_expr.parse(input)?;
@@ -310,7 +333,12 @@ fn parse_binary_expr_prec(
         // Check if parsing further produces an even higher precedence binary operator, and if so,
         // make that the new rhs. Needed for left-associativeness
         let next_min_precedence = op_precedence + 1;
-        let (rest, rhs) = parse_binary_expr_prec(rhs, next_min_precedence).parse(rest)?;
+
+        let (rest, rhs) = match parse_binary_expr_prec(rhs.clone(), next_min_precedence).parse(rest)
+        {
+            Ok((rest, rhs)) => (rest, rhs),
+            Err(_e) => (rest, rhs),
+        };
 
         // Create a new lhs for parsing with the original precedence
         let lhs = Expr::Binary {
@@ -330,7 +358,7 @@ fn parse_binary_op(input: TokenStream) -> IResult<TokenStream, BinaryOp> {
 
 // Parse into Expr::Unary
 fn parse_unary_expr(input: TokenStream) -> IResult<TokenStream, Expr> {
-    (parse_unary_op, parse_expr)
+    (parse_unary_op, parse_primary_expr)
         .map(|(op, expr)| Expr::Unary {
             operator: op,
             right: Box::new(expr),
@@ -535,6 +563,24 @@ fn parse_assignment_statement(input: TokenStream) -> IResult<TokenStream, Statem
 
 // DECLARATION PARSING SECTION
 
+fn parse_program(input: TokenStream) -> IResult<TokenStream, Program> {
+    let declarations = Vec::<Decl>::new();
+
+    terminated(
+        fold_many1(
+            parse_decl,
+            move || declarations.clone(),
+            move |mut vec, decl| {
+                vec.push(decl);
+                vec
+            },
+        ),
+        eof,
+    )
+    .map(|declarations| Program { declarations })
+    .parse(input)
+}
+
 /// Try to parse input into a declaration in order of nexus -> ability -> item
 fn parse_decl(input: TokenStream) -> IResult<TokenStream, Decl> {
     alt((parse_nexus, parse_ability, parse_item.map(|i| i.into()))).parse(input)
@@ -643,8 +689,9 @@ fn parse_item(input: TokenStream) -> IResult<TokenStream, Item> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::lexer::util::*;
     use crate::lexer::tokenize;
+    use crate::lexer::tokenize;
+    use crate::lexer::util::*;
     use nom::multi::many;
 
     #[test]
@@ -678,7 +725,7 @@ mod test {
 
         let body = Expr::String("byeah".to_string());
 
-        let should_be = Statement::Ping{value: body};
+        let should_be = Statement::Ping { value: body };
 
         let (_rest, statement) = parse_ping_statement(TokenStream::new(&tokens)).unwrap();
 
@@ -694,11 +741,16 @@ mod test {
         "#;
         let tokens = tokenize(code).unwrap();
 
-        let statements = vec![Statement::Recall { value: (Option::None) }];
+        let statements = vec![Statement::Recall {
+            value: (Option::None),
+        }];
 
         let body = Box::new(Statement::Block(statements));
 
-        let should_be = Statement::GoNext { condition: (Expr::Boolean(true)), body: (body) };
+        let should_be = Statement::GoNext {
+            condition: (Expr::Boolean(true)),
+            body: (body),
+        };
 
         let (_rest, statement) = parse_gonext_statement(TokenStream::new(&tokens)).unwrap();
 
@@ -893,7 +945,7 @@ mod test {
             gold_lit(5000),
         ];
 
-        let (_, result) = parse_binary_expr.parse(TokenStream::new(&tokens)).unwrap();
+        let (_, result) = parse_expr.parse(TokenStream::new(&tokens)).unwrap();
 
         let should_be = Expr::Binary {
             left: Box::new(Expr::Integer(1000)),
@@ -907,6 +959,28 @@ mod test {
                 right: Box::new(Expr::Integer(5000)),
             }),
         };
+
+        assert_eq!(result, should_be);
+    }
+
+    #[test]
+    fn test_parse_nexus() {
+        let code = r#"
+        nexus() {
+            buy my_variable: Chat = "Hello world!";
+        }
+        "#;
+        let tokens = tokenize(code).unwrap();
+
+        let body = vec![Statement::ItemDecl {
+            name: "my_variable".to_string(),
+            ty: Type::Chat,
+            initializer: Expr::String("Hello world!".to_string()),
+        }];
+
+        let should_be = Decl::Nexus { body };
+
+        let (_, result) = parse_nexus.parse(TokenStream::new(&tokens)).unwrap();
 
         assert_eq!(result, should_be);
     }
