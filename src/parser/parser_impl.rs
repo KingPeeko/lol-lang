@@ -644,7 +644,66 @@ fn parse_item(input: TokenStream) -> IResult<TokenStream, Item> {
 mod test {
     use super::*;
     use crate::lexer::util::*;
+    use crate::lexer::tokenize;
     use nom::multi::many;
+
+    #[test]
+    fn test_parse_block_statement() {
+        let code = r#"
+        {
+            buy rabadons: Gold = 1;
+        }
+        "#;
+        let tokens = tokenize(code).unwrap();
+
+        let body = vec![Statement::ItemDecl {
+            name: "rabadons".to_string(),
+            ty: Type::Gold,
+            initializer: Expr::Integer(1),
+        }];
+
+        let should_be = Statement::Block(body);
+
+        let (_rest, statement) = parse_block_statement(TokenStream::new(&tokens)).unwrap();
+
+        assert_eq!(statement, should_be);
+    }
+
+    #[test]
+    fn test_parse_ping_statement() {
+        let code = r#"
+        ping("byeah");
+        "#;
+        let tokens = tokenize(code).unwrap();
+
+        let body = Expr::String("byeah".to_string());
+
+        let should_be = Statement::Ping{value: body};
+
+        let (_rest, statement) = parse_ping_statement(TokenStream::new(&tokens)).unwrap();
+
+        assert_eq!(statement, should_be);
+    }
+
+    #[test]
+    fn test_parse_gonext_statement() {
+        let code = r#"
+        go next (true) {
+            recall;
+        }
+        "#;
+        let tokens = tokenize(code).unwrap();
+
+        let statements = vec![Statement::Recall { value: (Option::None) }];
+
+        let body = Box::new(Statement::Block(statements));
+
+        let should_be = Statement::GoNext { condition: (Expr::Boolean(true)), body: (body) };
+
+        let (_rest, statement) = parse_gonext_statement(TokenStream::new(&tokens)).unwrap();
+
+        assert_eq!(statement, should_be);
+    }
 
     #[test]
     fn test_parse_type() {
