@@ -690,7 +690,6 @@ fn parse_item(input: TokenStream) -> IResult<TokenStream, Item> {
 mod test {
     use super::*;
     use crate::lexer::tokenize;
-    use crate::lexer::tokenize;
     use crate::lexer::util::*;
     use nom::multi::many;
 
